@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Order output timeline events by frame and clock time, retaining processing order for equal timestamps, including split parts and carried-over context.
+
 - Retain clicks between Resume and the first resumed sample, preserving their clock times and assigning them to that resumed frame, including across split boundaries.
 
 - Queue mouse-hook clicks without waiting for drawing or timeline locks. Drain accepted clicks before frame advancement, pause and stop; defer warning file writes to the encoder worker outside the drawing lock.

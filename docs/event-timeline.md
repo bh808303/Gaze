@@ -26,6 +26,8 @@ Clicks drained while a resume is pending are buffered in the timeline until its 
 
 All events have frame, recordingFrame, clockTime, kind, and carryOver. Optional fields are omitted when absent.
 
+Output events are stably sorted by local frame, then clockTime, after split context is inserted. Equal frame/time pairs retain their original processing order. Thus subtitle cues and reader output follow event timestamps within each frame rather than callback/queue processing order. Frame order takes precedence if the system wall clock moves backwards.
+
 | Kind | Additional fields | Meaning |
 | --- | --- | --- |
 | start | None | First sampled frame |

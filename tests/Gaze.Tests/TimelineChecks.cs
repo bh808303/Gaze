@@ -5,6 +5,21 @@ internal static class TimelineChecks
     internal static void Run(Action<string, Action> test)
     {
         var start = new DateTimeOffset(2026, 10, 11, 9, 0, 0, TimeSpan.FromHours(2));
+        test("Slice orders events by frame and clock time while retaining equal-time processing order", () =>
+        {
+            var timeline = new RecordingTimeline(5); timeline.Frame(start);
+            timeline.Window("mail", "Dialog opened", "1", start.AddMilliseconds(40));
+            timeline.Click("left", 1, 1, 1, 1, start.AddMilliseconds(20));
+            timeline.Click("right", 2, 2, 2, 2, start.AddMilliseconds(40));
+            timeline.Frame(start.AddMilliseconds(200));
+            // Frame order takes precedence even if the system clock goes backwards.
+            timeline.Click("middle", 3, 3, 3, 3, start.AddMilliseconds(10));
+            var snapshot = timeline.Snapshot(2);
+            var part = snapshot.Slice(0, 2);
+            Require(part.Events.Select(e => e.Kind == "click" ? e.Button : e.Kind).SequenceEqual(new[] { "start", "left", "window", "right", "middle" }), "Chronology or equal-time stability was lost");
+            var split = snapshot.Slice(1, 1);
+            Require(split.Events[0].Button == "middle" && split.Events[1].CarryOver, "Split output was not clock ordered after carry-over insertion");
+        });
         test("Clicks drained before the first resumed frame survive with original clocks and the resumed frame index", () =>
         {
             var timeline = new RecordingTimeline(5); var queue = new Gaze.App.ClickQueue();

@@ -22,7 +22,9 @@ public sealed record TimelineSnapshot(int FramesPerSecond, IReadOnlyList<DateTim
         var anchors = Anchors.Where(a => a.Frame >= first && a.Frame < first + count)
             .Select(a => a with { Frame = a.Frame - first }).ToList();
         if (anchors.All(a => a.Frame != 0)) anchors.Insert(0, new(0, first, FrameTimes[first], "part-start"));
-        return new(1, FramesPerSecond, count, first, FrameTimes[0], FrameTimes[first], anchors, events);
+        // LINQ ordering is stable: equal frame/clock keys retain processing order.
+        var orderedEvents = events.OrderBy(e => e.Frame).ThenBy(e => e.ClockTime).ToArray();
+        return new(1, FramesPerSecond, count, first, FrameTimes[0], FrameTimes[first], anchors, orderedEvents);
     }
 }
 
