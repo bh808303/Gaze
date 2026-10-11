@@ -4,6 +4,7 @@ import importlib.util
 import io
 import json
 import sys
+import textwrap
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -24,7 +25,8 @@ class ReaderChecks(unittest.TestCase):
     def test_legacy_and_base64_titles(self):
         events = [{"title": "C:\\New folder\\notes.txt | Line\\nbreak | Line\\Nbreak | real\nnewline | <b> 😀"}]
         text = json.dumps({"version": 1, "events": events})
-        for payload in [text, "gaze-base64-v1:" + base64.b64encode(text.encode()).decode()]:
+        encoded = base64.b64encode(text.encode()).decode()
+        for payload in [text, "gaze-base64-v1:" + encoded, "gaze-base64-v1:" + "\n".join(textwrap.wrap(encoded, 80))]:
             self.assertEqual(reader.packet_events(packet(payload)), events)
 
     def test_bad_packets_warn_and_keep_later_events(self):

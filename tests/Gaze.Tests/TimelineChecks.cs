@@ -5,6 +5,19 @@ internal static class TimelineChecks
     internal static void Run(Action<string, Action> test)
     {
         var start = new DateTimeOffset(2026, 10, 11, 9, 0, 0, TimeSpan.FromHours(2));
+        test("Keyboard transitions retain repeats, scan codes and resume-gap timestamps, exclude pause and rebase split frames", () =>
+        {
+            var timeline = new RecordingTimeline(5); timeline.Frame(start);
+            timeline.Keyboard(65, 30, "A", true, false, false, false, start.AddMilliseconds(10));
+            timeline.Keyboard(65, 30, "A", true, true, false, false, start.AddMilliseconds(20));
+            timeline.Keyboard(65, 30, "A", false, false, false, false, start.AddMilliseconds(30));
+            timeline.Pause(start.AddMilliseconds(40)); timeline.Keyboard(66, 48, "B", true, false, false, false, start.AddSeconds(1));
+            timeline.Resume(start.AddSeconds(2)); timeline.Keyboard(13, 28, "Return", true, false, true, true, start.AddSeconds(2.01)); timeline.Frame(start.AddSeconds(2.2));
+            var snapshot = timeline.Snapshot(2); var keys = snapshot.Slice(0, 2).Events.Where(e => e.Kind == "key").ToArray();
+            Require(keys.Length == 4 && keys[1].Repeat == true && keys[2].KeyState == "up" && keys[0].ScanCode == 30, "Key transitions changed or paused key retained");
+            var key = snapshot.Slice(1, 1).Events.Single(e => e.Kind == "key");
+            Require(key.Frame == 0 && key.RecordingFrame == 1 && key.ClockTime == start.AddSeconds(2.01) && key.Injected == true && key.Extended == true, "Resume-gap key or split metadata changed");
+        });
         test("Ownerless popup acceptance requires a recorded native menu owner or exact recorded combo list", () =>
         {
             Require(Gaze.App.TimelineBoundary.IncludesPopup("#32768", true, false), "Recorded native menu rejected");

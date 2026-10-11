@@ -33,6 +33,7 @@ Output events are stably sorted by local frame, then clockTime, after split cont
 | start | None | First sampled frame |
 | window | process, title, windowId, scope, external | Window/title change with scope `foreground` or `captured`; title retained within capture boundary; external events omit process, title and windowId |
 | click | button, screenX, screenY, x, y | Button press inside captured area; desktop screen pixels plus encoded-video pixels |
+| key | virtualKey, scanCode, key, keyState, repeat, extended, injected | Individual physical key transition; keyState is down/up; opt-in only |
 | pause | None | Capture pause request |
 | resume | None | Resume request, associated with first resumed frame |
 | part-start | None | Timing marker for a part with no other events |
@@ -52,6 +53,12 @@ When splitting is enabled, each completed part is checked against 29,000,000 byt
 Source references: [FFmpeg stream-copy and metadata mapping](https://ffmpeg.org/ffmpeg.html), [FFmetadata and MOV/MP4 metadata](https://ffmpeg.org/ffmpeg-formats.html), and the bundled FFmpeg 7.1 source `libavformat/movenc.c:enable_tracks` / `libavformat/mov.c:mov_read_tkhd` for subtitle defaults.
 
 ## Capture boundary
+
+Keyboard events in timeline is off by default, including when loading older settings. Enabling it applies to the next recording. The low-level keyboard hook captures key down/up and system-key transitions, their original hook timestamps, flags and the foreground HWND, then only queues them. The consumer validates that captured foreground window against recorded root/owned-dialog relationships in window mode or overlap with captured monitor rectangles in monitor modes. No foreign key names/codes are persisted to the timeline. Paused input is ignored; accepted keys before pause/stop are drained, and pending-resume keys use the first resumed frame. Key repeat state resets on pause or excluded foreground input.
+
+This records every delivered key transition, including modifiers and auto-repeat, rather than typing summaries. `key` is a virtual-key label, not translated typed text; layout/IME conversion is not performed. Key codes can still reveal sensitive typing, including password entry within the capture boundary. Secure desktop input and keys unavailable to the Windows hook are not captured. Foreground HWND is sampled at hook time; geometry and relationships are checked when consumed, so later movement/closure can affect inclusion. In monitor modes overlap includes the entire focused window's keyboard input even if only partly visible, matching the title overlap rule.
+
+Base64 cue text is wrapped into short lines to avoid SubRip's long-line handling. The reader removes only base64 whitespace before strict validation, supporting both earlier single-line base64 recordings and new wrapped payloads. Legacy plain JSON remains supported.
 
 Window mode checks root-window and owned-dialog relationships before reading a title or process name. A foreign foreground window produces a neutral `external: true` event, clearing prior foreground context without storing its identity; foreign title changes are deduplicated as the same neutral context. Captured-scope title notifications follow the currently captured root, including child notifications normalized with GA_ROOT. An owned dialog has its own root and is allowed through the recording's owner relationship, not just a shared process ID. Monitor modes require overlap with an actual captured monitor rectangle, including Main monitor mode; foreground location changes refresh that boundary check. Whole titles are retained for partly overlapping windows. Clicks outside the captured window bounds or outside all captured monitor rectangles are discarded. Region capture is not currently available; no new title settings or exclusion list are added. Existing recordings are unchanged.
 

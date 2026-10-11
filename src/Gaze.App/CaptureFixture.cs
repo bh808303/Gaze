@@ -43,7 +43,9 @@ internal sealed class CaptureFixture : Form
     [DllImport("user32.dll")] private static extern bool GetComboBoxInfo(nint combo, ref ComboInfo info);
     [DllImport("user32.dll")] private static extern nint GetFocus();
     [StructLayout(LayoutKind.Sequential)] private struct MouseInput { internal int X, Y; internal uint Data, Flags, Time; internal nuint Extra; }
-    [StructLayout(LayoutKind.Explicit, Size = 40)] private struct TestInput { [FieldOffset(0)] internal uint Type; [FieldOffset(8)] internal MouseInput Mouse; }
+    [StructLayout(LayoutKind.Sequential)] private struct KeyboardInput { internal ushort Key, Scan; internal uint Flags, Time; internal nuint Extra; }
+    [StructLayout(LayoutKind.Explicit, Size = 40)] private struct TestInput { [FieldOffset(0)] internal uint Type; [FieldOffset(8)] internal MouseInput Mouse; [FieldOffset(8)] internal KeyboardInput Keyboard; }
+    private bool KeyboardCheck => args.Contains("--keyboard-check") || args.Contains("--keyboard-off-check");
     [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll", SetLastError = true)] private static extern uint SendInput(uint count, TestInput[] inputs, int size);
     private double recordingStart;
@@ -116,12 +118,13 @@ internal sealed class CaptureFixture : Form
             Log($"Target validation passed; {rejectedShellWindows} shell surfaces rejected.");
             var canvasMode = args.Contains("--monitor-canvas") ? WindowCanvasMode.Monitor : WindowCanvasMode.OriginalWindow;
             var compression = args.Contains("--compact") ? CompressionMode.Compact : CompressionMode.Original;
-            var persisted = JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(new Settings { WindowCanvas = canvasMode, Compression = compression }))!;
+            var persisted = JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(new Settings { WindowCanvas = canvasMode, Compression = compression, KeyboardTimeline = args.Contains("--keyboard-check") }))!;
+            if (JsonSerializer.Deserialize<Settings>("{}")!.KeyboardTimeline || persisted.KeyboardTimeline != args.Contains("--keyboard-check")) throw new InvalidOperationException("Keyboard setting default or persistence failed.");
             if (persisted.Compression != compression || JsonSerializer.Deserialize<Settings>("{}")!.Compression != CompressionMode.Original)
                 throw new InvalidOperationException("Compression settings did not round-trip or preserve the default.");
             if (persisted.WindowCanvas != canvasMode || JsonSerializer.Deserialize<Settings>("{}")!.WindowCanvas != WindowCanvasMode.OriginalWindow)
                 throw new InvalidOperationException("Canvas settings did not round-trip or preserve the default.");
-            capture.Start(args.Contains("--all-monitors") ? CaptureMode.AllMonitors : CaptureMode.Window, Handle, 5, !args.Contains("--no-click-highlight"), evidence, true, persisted.WindowCanvas, persisted.Compression, persisted.SplitAt29Mb);
+            capture.Start(args.Contains("--all-monitors") ? CaptureMode.AllMonitors : CaptureMode.Window, Handle, 5, !args.Contains("--no-click-highlight"), evidence, true, persisted.WindowCanvas, persisted.Compression, persisted.SplitAt29Mb, persisted.KeyboardTimeline);
             var expected = canvasMode == WindowCanvasMode.Monitor ? Screen.FromHandle(Handle).Bounds.Size : Size;
             if (Math.Abs(capture.Canvas.Width - expected.Width) > 24 || Math.Abs(capture.Canvas.Height - expected.Height) > 24)
                 throw new InvalidOperationException("Canvas does not match the selected policy.");
@@ -147,6 +150,7 @@ internal sealed class CaptureFixture : Form
                 try { if (SendInput(10, inputs, Marshal.SizeOf<TestInput>()) != 10) throw new InvalidOperationException("Could not inject the synthetic click test."); }
                 finally { SetCursorPos(original.X, original.Y); }
                 Log("Five rapid synthetic clicks sent between frames; fixture title changed.");
+                if (KeyboardCheck) InjectKeys(Handle, (117, false), (117, false), (117, true), (160, false), (65, false), (65, true), (160, true));
             }
             if (elapsed > 2 && cover == null)
             {
@@ -172,6 +176,7 @@ internal sealed class CaptureFixture : Form
                 try { if (SendInput(2, inputs, Marshal.SizeOf<TestInput>()) != 2) throw new InvalidOperationException("Could not inject the covering-window click."); }
                 finally { SetCursorPos(original.X, original.Y); }
                 coverInputSent = true; Log("Synthetic click sent to unrelated covering window; it must not enter the timeline.");
+                if (KeyboardCheck) InjectKeys(cover.Handle, (118, false), (118, true));
             }
             if (elapsed > 7 && !closed) { closed = true; dialog?.Close(); cover?.Close(); Log("Dialog and covering window closed"); }
             if (args.Contains("--event-check") && !args.Contains("--all-monitors") && elapsed > 7.2 && !menuOpened)
@@ -206,8 +211,8 @@ internal sealed class CaptureFixture : Form
                 var next = Native.FollowedWindow(Handle, current);
                 if (next != current) { capture!.Switch(next); current = next; Log($"Switched to {Native.Title(next)}"); }
             }
-            if (elapsed > 8 && !paused) { paused = true; capture!.Pause(); Log("Paused"); }
-            if (elapsed > 9.5 && !resumed) { resumed = true; capture!.Resume(); Log("Resumed"); }
+            if (elapsed > 8 && !paused) { paused = true; capture!.Pause(); Log("Paused"); if (KeyboardCheck) InjectKeys(Handle, (120, false), (120, true)); }
+            if (elapsed > 9.5 && !resumed) { resumed = true; capture!.Resume(); Log("Resumed"); if (KeyboardCheck) InjectKeys(Handle, (122, false), (122, true)); }
             if (args.Contains("--event-check") && !args.Contains("--all-monitors") && resumed && elapsed > 10.3 && !nativeMenuStarted)
             {
                 nativeMenuStarted = true; nativeMenuShownAt = elapsed;
@@ -277,6 +282,13 @@ internal sealed class CaptureFixture : Form
         try { if (SendInput(2, inputs, Marshal.SizeOf<TestInput>()) != 2) throw new InvalidOperationException("Could not inject synthetic menu click."); }
         finally { SetCursorPos(original.X, original.Y); }
     }
+    private void InjectKeys(nint expectedWindow, params (ushort Key, bool Up)[] keys)
+    {
+        if (Native.GetForegroundWindow() != expectedWindow) throw new InvalidOperationException("Synthetic keyboard target is not foreground; no keys injected.");
+        var inputs = keys.Select(key => new TestInput { Type = 1, Keyboard = new KeyboardInput { Key = key.Key, Flags = key.Up ? 2u : 0u } }).ToArray();
+        if (SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<TestInput>()) != inputs.Length) throw new InvalidOperationException("Synthetic key injection failed.");
+        Log($"Sent {inputs.Length} synthetic key transitions to guarded fixture window.");
+    }
     private void InjectButton(Point point, bool down, nint expectedWindow)
     {
         var hit = Native.WindowFromPoint(point); Native.GetWindowThreadProcessId(hit, out var pid);
@@ -306,6 +318,14 @@ internal sealed class CaptureFixture : Form
             chapterCount += data.RootElement.GetProperty("chapters").GetArrayLength();
         }
         var clicks = allEvents.Where(e => e.GetProperty("kind").GetString() == "click").ToArray();
+        if (KeyboardCheck)
+        {
+            var keys = allEvents.Where(e => e.GetProperty("kind").GetString() == "key").ToArray();
+            int expected = args.Contains("--keyboard-check") ? 9 : 0;
+            if (keys.Length != expected || keys.Any(e => e.GetProperty("virtualKey").GetInt32() is 118 or 120)) throw new InvalidOperationException($"Keyboard default/boundary/pause check failed: expected {expected}, got {keys.Length}.");
+            if (expected > 0 && (!keys.Any(e => e.GetProperty("repeat").GetBoolean()) || keys.Count(e => e.GetProperty("virtualKey").GetInt32() == 122) != 2 || keys.Any(e => !e.GetProperty("injected").GetBoolean()))) throw new InvalidOperationException("Keyboard repeat/resume/injected fields missing.");
+            Log($"PASS: {keys.Length} key events; foreign and paused keys absent, setting respected.");
+        }
         if (clicks.Length < 5 || clicks.GroupBy(e => e.GetProperty("frame").GetInt32()).Max(g => g.Count()) < 4)
             throw new InvalidOperationException("Rapid clicks between video frames were not preserved.");
         if (!allEvents.Any(e => e.GetProperty("kind").GetString() == "window" && e.TryGetProperty("title", out var title) && title.GetString()!.Contains("Invoice 4242")) || chapterCount < 2)

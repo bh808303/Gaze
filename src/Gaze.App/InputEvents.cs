@@ -13,12 +13,15 @@ internal sealed class InputEvents : IDisposable
         internal Point Point; internal uint Buttons, Flags, Time; internal nuint ExtraInfo;
     }
     private readonly Native.HookCallback mouseCallback;
+    private readonly Native.HookCallback keyboardCallback;
+    private nint keyboardHook;
+    [StructLayout(LayoutKind.Sequential)] private struct KeyboardData { internal uint VirtualKey, ScanCode, Flags, Time; internal nuint ExtraInfo; }
     private readonly Native.WinEventCallback windowCallback;
     private nint mouseHook, foregroundHook, titleHook;
     private bool warned;
     private readonly Action<nint, DateTimeOffset, string> describeWindow;
     private readonly MonitorBoundaryCache boundaryCache = new();
-    internal InputEvents(Action<string, Point, DateTimeOffset> click, Action<string?, string?, string?, DateTimeOffset, string, bool> window, Action<string> warning, Func<nint> capturedWindow, CaptureMode mode, nint recordingRoot, IReadOnlyList<Rectangle> areas)
+    internal InputEvents(Action<string, Point, DateTimeOffset> click, Action<string?, string?, string?, DateTimeOffset, string, bool> window, Action<string> warning, Func<nint> capturedWindow, CaptureMode mode, nint recordingRoot, IReadOnlyList<Rectangle> areas, Action<RawKey>? key = null)
     {
         void Guard(Action action)
         {
@@ -78,12 +81,23 @@ internal sealed class InputEvents : IDisposable
             if (type == 0x800C && objectId == 0 && childId == 0 && root == capturedWindow())
                 Guard(() => Window(root, ClockTime(time), "captured"));
         };
+        keyboardCallback = (code, message, data) =>
+        {
+            if (code >= 0 && message is 0x100 or 0x101 or 0x104 or 0x105)
+                Guard(() =>
+                {
+                    var input = Marshal.PtrToStructure<KeyboardData>(data);
+                    key?.Invoke(new((int)input.VirtualKey, (int)input.ScanCode, input.Flags, message is 0x100 or 0x104, Native.GetForegroundWindow(), ClockTime(input.Time)));
+                });
+            return Native.CallNextHookEx(keyboardHook, code, message, data);
+        };
         try
         {
             mouseHook = Native.SetWindowsHookEx(14, mouseCallback, Native.GetModuleHandle(null), 0);
+            if (key != null) keyboardHook = Native.SetWindowsHookEx(13, keyboardCallback, Native.GetModuleHandle(null), 0);
             foregroundHook = Native.SetWinEventHook(3, 3, 0, windowCallback, 0, 0, 0);
             titleHook = Native.SetWinEventHook(mode == CaptureMode.Window ? 0x800Cu : 0x800Bu, 0x800C, 0, windowCallback, 0, 0, 0);
-            if (mouseHook == 0 || foregroundHook == 0 || titleHook == 0)
+            if (mouseHook == 0 || foregroundHook == 0 || titleHook == 0 || (key != null && keyboardHook == 0))
                 throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "Could not install recording event hooks.");
             Window(Native.GetForegroundWindow(), DateTimeOffset.Now, "foreground");
             Window(capturedWindow(), DateTimeOffset.Now, "captured");
@@ -100,6 +114,8 @@ internal sealed class InputEvents : IDisposable
     }
     public void Dispose()
     {
+        if (keyboardHook != 0) Native.UnhookWindowsHookEx(keyboardHook);
+        keyboardHook = 0;
         if (mouseHook != 0) Native.UnhookWindowsHookEx(mouseHook);
         if (foregroundHook != 0) Native.UnhookWinEvent(foregroundHook);
         if (titleHook != 0) Native.UnhookWinEvent(titleHook);

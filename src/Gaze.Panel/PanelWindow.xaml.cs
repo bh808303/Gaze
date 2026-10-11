@@ -91,6 +91,7 @@ public partial class PanelWindow : FluentWindow
         Fps.Value = options.FrameRate; Canvas.SelectedIndex = (int)options.Canvas; Canvas.IsEnabled = options.Mode == CaptureMode.Window;
         Compression.SelectedIndex = (int)options.Compression;
         SplitAt29Mb.IsChecked = false; SplitAt29Mb.IsChecked = options.SplitAt29Mb;
+        KeyboardTimeline.IsChecked = options.KeyboardTimeline;
     }
     public void RunPreview(string path)
     {
@@ -131,6 +132,18 @@ public partial class PanelWindow : FluentWindow
         toggle.IsChecked = false; CancelSettingsClick(this, new RoutedEventArgs()); EditSettings();
         if ((bool)property.GetValue(getOptions())! != true || toggle.IsChecked != true)
             throw new InvalidOperationException("Cancel changed the split setting.");
+    }
+    public void CheckKeyboard()
+    {
+        EditSettings();
+        if (getOptions().KeyboardTimeline || KeyboardTimeline.IsChecked == true) throw new InvalidOperationException("Keyboard capture must default off.");
+        foreach (bool enabled in new[] { true, false })
+        {
+            KeyboardTimeline.IsChecked = enabled; SaveClick(this, new RoutedEventArgs()); EditSettings();
+            if (getOptions().KeyboardTimeline != enabled || KeyboardTimeline.IsChecked != enabled) throw new InvalidOperationException("Keyboard setting save/reload failed.");
+        }
+        KeyboardTimeline.IsChecked = true; CancelSettingsClick(this, new RoutedEventArgs()); EditSettings();
+        if (getOptions().KeyboardTimeline || KeyboardTimeline.IsChecked == true) throw new InvalidOperationException("Keyboard cancel changed saved setting.");
     }
     public void Render(string path)
     {
@@ -181,6 +194,7 @@ public partial class PanelWindow : FluentWindow
             if (Compression.SelectedIndex < 0) throw new InvalidOperationException("Choose a compression mode.");
             options.Compression = (CompressionMode)Compression.SelectedIndex;
             options.SplitAt29Mb = SplitAt29Mb.IsChecked == true;
+            options.KeyboardTimeline = KeyboardTimeline.IsChecked == true;
             apply(options); Home();
         }
         catch (Exception error) { System.Windows.MessageBox.Show(this, error.Message, "Could not save settings"); }

@@ -12,6 +12,8 @@ internal sealed class Capture : IDisposable
 {
     private readonly object gate = new();
     private readonly ClickQueue pendingClicks = new();
+    private readonly KeyboardQueue pendingKeys = new();
+    private readonly HashSet<int> keysDown = [];
     private readonly System.Collections.Concurrent.ConcurrentQueue<string> pendingWarnings = new();
     private GraphicsSource? window;
     private nint target;
@@ -56,7 +58,7 @@ internal sealed class Capture : IDisposable
         }
         throw new FileNotFoundException("FFmpeg is required. Place ffmpeg.exe beside Gaze, or set GAZE_FFMPEG to its path.");
     }
-    internal void Start(CaptureMode mode, nint root, int fps, bool clicks, string folder, bool diagnostics = false, WindowCanvasMode windowCanvas = WindowCanvasMode.OriginalWindow, CompressionMode compression = CompressionMode.Original, bool splitAt29Mb = false)
+    internal void Start(CaptureMode mode, nint root, int fps, bool clicks, string folder, bool diagnostics = false, WindowCanvasMode windowCanvas = WindowCanvasMode.OriginalWindow, CompressionMode compression = CompressionMode.Original, bool splitAt29Mb = false, bool keyboardTimeline = false)
     {
         if (!Enum.IsDefined(compression)) throw new ArgumentOutOfRangeException(nameof(compression));
         this.compression = compression;
@@ -91,7 +93,7 @@ internal sealed class Capture : IDisposable
                 monitors.Add((screen.DeviceName, new Rectangle(screen.Bounds.X - bounds.X, screen.Bounds.Y - bounds.Y, screen.Bounds.Width, screen.Bounds.Height), new GraphicsSource(monitor, true, fps)));
             }
         }
-        try { input = new InputEvents(QueueClick, timeline.Window, Warn, () => mode == CaptureMode.Window ? target : 0, mode, root, captureAreas); }
+        try { input = new InputEvents(QueueClick, timeline.Window, Warn, () => mode == CaptureMode.Window ? target : 0, mode, root, captureAreas, keyboardTimeline ? QueueKey : null); }
         catch (Exception e) { Warn($"Input event recording unavailable: {e.Message}"); }
         cancel = new(); worker = Task.Run(() => Encode(cancel.Token));
     }
@@ -127,6 +129,7 @@ internal sealed class Capture : IDisposable
                     lock (gate)
                     {
                         pendingClicks.Drain(RecordClick);
+                        pendingKeys.Drain(RecordKey);
                         if (paused || stopping) continue;
                         timeline!.Frame(DateTimeOffset.Now);
                         Render(canvas);
@@ -236,6 +239,21 @@ internal sealed class Capture : IDisposable
     {
         if (!paused && !stopping && !disposed) pendingClicks.Enqueue(button, point, time);
     }
+    private void QueueKey(RawKey key)
+    {
+        if (!paused && !stopping && !disposed) pendingKeys.Enqueue(key);
+    }
+    private void RecordKey(RawKey key)
+    {
+        var root = Native.GetAncestor(key.Foreground, 2);
+        if (root == 0 || !Native.IsWindow(root)) return;
+        bool related = mode == CaptureMode.Window && (root == target || Native.OwnedBy(root, recordingRoot));
+        if (!TimelineBoundary.IncludesWindow(mode, related, mode == CaptureMode.Window ? Rectangle.Empty : Native.Bounds(root), captureAreas))
+        { keysDown.Clear(); return; }
+        bool repeat = key.Down && !keysDown.Add(key.VirtualKey);
+        if (!key.Down) keysDown.Remove(key.VirtualKey);
+        timeline?.Keyboard(key.VirtualKey, key.ScanCode, ((Keys)key.VirtualKey).ToString(), key.Down, repeat, (key.Flags & 1) != 0, (key.Flags & 16) != 0, key.Time);
+    }
     private void RecordClick(string button, Point point, DateTimeOffset time)
     {
         lock (gate)
@@ -268,9 +286,9 @@ internal sealed class Capture : IDisposable
             catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }
-    internal void Pause() { lock (gate) { paused = true; pendingClicks.Drain(RecordClick); timeline?.Pause(DateTimeOffset.Now); } StatusChanged?.Invoke(RecorderStatus.Paused); }
+    internal void Pause() { lock (gate) { paused = true; pendingClicks.Drain(RecordClick); pendingKeys.Drain(RecordKey); keysDown.Clear(); timeline?.Pause(DateTimeOffset.Now); } StatusChanged?.Invoke(RecorderStatus.Paused); }
     internal void Resume() { lock (gate) { timeline?.Resume(DateTimeOffset.Now); paused = false; } StatusChanged?.Invoke(RecorderStatus.Recording); }
-    internal void Stop() { if (disposed) return; lock (gate) { stopping = true; pendingClicks.Drain(RecordClick); timeline?.Stop(); } cancel?.Cancel(); }
+    internal void Stop() { if (disposed) return; lock (gate) { stopping = true; pendingClicks.Drain(RecordClick); pendingKeys.Drain(RecordKey); timeline?.Stop(); } cancel?.Cancel(); }
     internal static void CopyFile(string path)
         => CopyFiles(new[] { path });
     internal static void CopyFiles(IReadOnlyList<string> paths)

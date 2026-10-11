@@ -28,6 +28,7 @@ internal static class MetadataChecks
             if (i == 6) { timeline.Pause(startTime.AddSeconds(1.1)); timeline.Window("private-browser", "PRIVATE CUSTOMER", "private-id", startTime.AddSeconds(9), external: true); timeline.Resume(startTime.AddSeconds(10)); }
             timeline.Frame(startTime.AddSeconds(i / (double)fps + (i >= 6 ? 10 : 0)));
             timeline.Click("left", 100 + i, 200 + i, i, i, startTime.AddSeconds(i / (double)fps + (i >= 6 ? 10 : 0)).AddMilliseconds(30));
+            for (int k = 0; k < 12; k++) timeline.Keyboard(117, 64, "F6", true, k > 0, false, true, startTime.AddSeconds(i / (double)fps + (i >= 6 ? 10 : 0)).AddMilliseconds(40 + k));
         }
         var snapshot = timeline.Snapshot(frames); var raw = Path.Combine(folder, "frames.bgra");
         var random = new Random(2); var bytes = new byte[160 * 120 * 4 * frames]; random.NextBytes(bytes); File.WriteAllBytes(raw, bytes);
@@ -52,6 +53,7 @@ internal static class MetadataChecks
                 Require(track.GetProperty("disposition").GetProperty("default").GetInt32() == 0, "Event track defaults to on");
                 using var data = Read(embedded); var root = data.RootElement;
                 Require(root.GetProperty("events").EnumerateArray().Count(e => e.GetProperty("kind").GetString() == "click") == frames, "Events were lost in the text track");
+                Require(root.GetProperty("events").EnumerateArray().Count(e => e.GetProperty("kind").GetString() == "key") == frames * 12, "Long multi-line keyboard cue was lost");
                 Require(root.GetProperty("events").EnumerateArray().First(e => e.GetProperty("kind").GetString() == "window").GetProperty("title").GetString() == title, "Event title was altered");
                 Require(root.GetProperty("chapters")[0].GetProperty("title").GetString() == "mail — " + title.Replace('\n', ' '), "Chapter title was altered");
                 Require(root.GetProperty("chapters").GetArrayLength() == 2, "Window chapters are missing");
@@ -76,7 +78,7 @@ internal static class MetadataChecks
                 var warnings = new List<string>();
                 var parts = RecordingSplitter.CreateAsync(source, frames, encoder, fps, CompressionMode.Original, snapshot, warnings.Add, limit).GetAwaiter().GetResult();
                 Require(parts.Count > 1 && warnings.Count == 0, "Metadata did not trigger splitting or part embedding failed");
-                var clicks = new List<int>(); int count = 0;
+                var clicks = new List<int>(); var keys = new List<int>(); int count = 0;
                 foreach (var part in parts)
                 {
                     Require(new FileInfo(part).Length <= limit, "Metadata pushed a part beyond the limit");
@@ -89,8 +91,14 @@ internal static class MetadataChecks
                         int originalFrame = e.GetProperty("recordingFrame").GetInt32(); clicks.Add(originalFrame);
                         Require(e.GetProperty("frame").GetInt32() == originalFrame - first, "Event timestamp was not rebased");
                     }
+                    foreach (var e in root.GetProperty("events").EnumerateArray().Where(e => e.GetProperty("kind").GetString() == "key"))
+                    {
+                        int originalFrame = e.GetProperty("recordingFrame").GetInt32(); keys.Add(originalFrame);
+                        Require(e.GetProperty("frame").GetInt32() == originalFrame - first, "Key frame was not rebased");
+                    }
                 }
                 Require(count == frames && clicks.SequenceEqual(Enumerable.Range(0, frames)), "Split events were lost, duplicated or reordered");
+                Require(keys.SequenceEqual(Enumerable.Range(0, frames).SelectMany(frame => Enumerable.Repeat(frame, 12))), "Split keyboard events were lost or reordered");
             });
         }
         finally { Directory.Delete(folder, true); }

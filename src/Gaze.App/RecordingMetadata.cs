@@ -33,7 +33,10 @@ internal static class RecordingMetadata
             text.Append(++index).Append('\n').Append(Time(first)).Append(" --> ").Append(Time(last)).Append('\n');
             var json = JsonSerializer.Serialize(new { version = 1, events = group.ToArray() }, Json);
             // SubRip interprets backslash escapes and markup even inside JSON strings.
-            var payload = "gaze-base64-v1:" + Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+            var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+            // SubRip wraps long lines; use short lines deliberately and decode whitespace safely.
+            var payload = "gaze-base64-v1:" + string.Join("\n", Enumerable.Range(0, (encoded.Length + 119) / 120)
+                .Select(i => encoded.Substring(i * 120, Math.Min(120, encoded.Length - i * 120))));
             if (Encoding.UTF8.GetByteCount(payload) > 60_000) throw new InvalidOperationException("Too many events in one frame to fit a timed-text packet.");
             text.Append(payload).Append("\n\n");
         }

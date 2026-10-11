@@ -10,8 +10,8 @@ internal sealed class TrayPanel : IDisposable, IWin32Window
     {
         window = new PanelWindow(() =>
         {
-            var value = getSettings(); return new PanelOptions { Mode = value.Mode, Canvas = value.WindowCanvas, Folder = value.Folder, FrameRate = value.FrameRate, Compression = value.Compression, Modifiers = value.Modifiers, Key = (int)value.Key, ShortcutText = value.Shortcut, AutoCopy = value.AutoCopy, SplitAt29Mb = value.SplitAt29Mb, ClickHighlight = value.ClickHighlight, DoubleEscape = value.DoubleEscape };
-        }, options => apply(new Settings { Mode = options.Mode, WindowCanvas = options.Canvas, Folder = options.Folder, FrameRate = options.FrameRate, Compression = options.Compression, Modifiers = options.Modifiers, Key = (Keys)options.Key, AutoCopy = options.AutoCopy, SplitAt29Mb = options.SplitAt29Mb, ClickHighlight = options.ClickHighlight, DoubleEscape = options.DoubleEscape }), action, cancel, open, folder, copy, quit, cleanup);
+            var value = getSettings(); return new PanelOptions { Mode = value.Mode, Canvas = value.WindowCanvas, Folder = value.Folder, FrameRate = value.FrameRate, Compression = value.Compression, Modifiers = value.Modifiers, Key = (int)value.Key, ShortcutText = value.Shortcut, AutoCopy = value.AutoCopy, SplitAt29Mb = value.SplitAt29Mb, KeyboardTimeline = value.KeyboardTimeline, ClickHighlight = value.ClickHighlight, DoubleEscape = value.DoubleEscape };
+        }, options => apply(new Settings { Mode = options.Mode, WindowCanvas = options.Canvas, Folder = options.Folder, FrameRate = options.FrameRate, Compression = options.Compression, Modifiers = options.Modifiers, Key = (Keys)options.Key, AutoCopy = options.AutoCopy, SplitAt29Mb = options.SplitAt29Mb, KeyboardTimeline = options.KeyboardTimeline, ClickHighlight = options.ClickHighlight, DoubleEscape = options.DoubleEscape }), action, cancel, open, folder, copy, quit, cleanup);
         Native.SetWindowDisplayAffinity(Handle, 0);
     }
     internal void RefreshState(SessionState state, TimeSpan duration, bool busy, bool hasFile)
@@ -28,6 +28,7 @@ internal sealed class TrayPanel : IDisposable, IWin32Window
     internal void EditSettings() => window.EditSettings();
     internal void CheckCompression() => window.CheckCompression();
     internal void CheckSplitting() => window.CheckSplitting();
+    internal void CheckKeyboard() => window.CheckKeyboard();
     internal void Hide() => window.Hide();
     internal void Show() => window.Show();
     internal void RunPreview(string path) => window.RunPreview(path);

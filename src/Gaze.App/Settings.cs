@@ -12,6 +12,7 @@ internal sealed class Settings
     public bool ClickHighlight { get; set; } = true;
     public bool AutoCopy { get; set; } = true;
     public bool SplitAt29Mb { get; set; }
+    public bool KeyboardTimeline { get; set; }
     public bool DoubleEscape { get; set; } = true;
     public uint Modifiers { get; set; } = 3;
     public Keys Key { get; set; } = Keys.PrintScreen;

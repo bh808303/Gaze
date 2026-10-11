@@ -78,6 +78,7 @@ internal static class Program
             using var preview = new TrayPanel(() => value, proposed => value = proposed, () => { }, () => { }, _ => { }, () => { }, _ => { }, () => { }, () => { });
             preview.RefreshState(Gaze.Core.SessionState.Idle, TimeSpan.Zero, false, false);
             if (args.Contains("--check-compression")) preview.CheckCompression();
+            if (args.Contains("--check-keyboard")) preview.CheckKeyboard();
             if (args.Contains("--check-splitting"))
             {
                 try { preview.CheckSplitting(); }

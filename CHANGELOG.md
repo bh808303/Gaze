@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add off-by-default Keyboard events in timeline to the WPF settings. Record individual key-down/up events, repeats, virtual/scan codes and original timestamps only within the capture boundary; ignore paused input and retain resume-gap keys in split parts. Keep the keyboard hook queue-only.
+- Wrap large base64 event cues safely and tolerate base64 whitespace when reading, preventing SubRip long-line wrapping from dropping busy event batches.
+
 - Recognize editable combo dropdowns when their inner Edit child has focus by trying only its direct recorded parent and retaining the exact hwndList match. Verify a second native DropDown combo alongside DropDownList.
 
 - Retain ownerless native menu (`#32768`) and combo dropdown (`ComboLBox`) clicks when Windows associates their active menu owner or exact focused-combo list with the recorded window. Add native regression steps holding both popups open across frame ticks; unrelated windows remain excluded.

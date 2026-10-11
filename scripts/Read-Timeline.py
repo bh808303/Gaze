@@ -25,7 +25,8 @@ def packet_events(packet):
     text = data[2:2 + size].decode("utf-8")
     prefix = "gaze-base64-v1:"
     if text.startswith(prefix):
-        text = base64.b64decode(text[len(prefix):], validate=True).decode("utf-8")
+        encoded = "".join(text[len(prefix):].split())
+        text = base64.b64decode(encoded, validate=True).decode("utf-8")
     payload = json.loads(text)  # Legacy recordings contain plain JSON.
     events = payload["events"]
     if not isinstance(events, list) or any(not isinstance(event, dict) for event in events):

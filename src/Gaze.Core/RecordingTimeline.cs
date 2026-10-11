@@ -2,7 +2,8 @@ namespace Gaze.Core;
 
 public sealed record TimelineEvent(int Frame, int RecordingFrame, DateTimeOffset ClockTime, string Kind,
     string? Process = null, string? Title = null, string? WindowId = null, string? Button = null,
-    int? ScreenX = null, int? ScreenY = null, int? X = null, int? Y = null, bool CarryOver = false, string? Scope = null, bool External = false);
+    int? ScreenX = null, int? ScreenY = null, int? X = null, int? Y = null, bool CarryOver = false, string? Scope = null, bool External = false,
+    int? VirtualKey = null, int? ScanCode = null, string? Key = null, string? KeyState = null, bool? Repeat = null, bool? Extended = null, bool? Injected = null);
 public sealed record ClockAnchor(int Frame, int RecordingFrame, DateTimeOffset ClockTime, string Reason, DateTimeOffset? TransitionTime = null);
 public sealed record TimelinePart(int Version, int FramesPerSecond, int FrameCount, int RecordingFirstFrame,
     DateTimeOffset RecordingStartTime, DateTimeOffset PartStartTime, IReadOnlyList<ClockAnchor> ClockAnchors, IReadOnlyList<TimelineEvent> Events);
@@ -37,7 +38,7 @@ public sealed class RecordingTimeline
     private readonly List<DateTimeOffset> frames = [];
     private readonly List<ClockAnchor> anchors = [];
     private readonly List<TimelineEvent> events = [];
-    private readonly List<TimelineEvent> resumedClicks = [];
+    private readonly List<TimelineEvent> resumedInputs = [];
     private readonly Dictionary<string, TimelineEvent> windows = [];
     private DateTimeOffset? resume;
     private bool active, closed;
@@ -65,8 +66,8 @@ public sealed class RecordingTimeline
                         events.Add(window with { Frame = frame, RecordingFrame = frame, ClockTime = time });
                 }
                 resume = null;
-                events.AddRange(resumedClicks.Select(e => e with { Frame = frame, RecordingFrame = frame }));
-                resumedClicks.Clear();
+                events.AddRange(resumedInputs.Select(e => e with { Frame = frame, RecordingFrame = frame }));
+                resumedInputs.Clear();
             }
             active = true;
         }
@@ -90,7 +91,7 @@ public sealed class RecordingTimeline
             if (closed) return;
             var click = new TimelineEvent(CurrentFrame, CurrentFrame, time, "click", Button: button, ScreenX: screenX, ScreenY: screenY, X: x, Y: y);
             if (active) events.Add(click);
-            else if (resume.HasValue) resumedClicks.Add(click);
+            else if (resume.HasValue) resumedInputs.Add(click);
         }
     }
     public void Pause(DateTimeOffset time)
@@ -101,13 +102,24 @@ public sealed class RecordingTimeline
             if (!active)
             {
                 // A second pause before a resumed sample cancels that unsampled interval.
-                resume = null; resumedClicks.Clear(); return;
+                resume = null; resumedInputs.Clear(); return;
             }
             events.Add(new(CurrentFrame, CurrentFrame, time, "pause")); active = false;
         }
     }
+    public void Keyboard(int virtualKey, int scanCode, string key, bool down, bool repeat, bool extended, bool injected, DateTimeOffset time)
+    {
+        lock (gate)
+        {
+            if (closed) return;
+            var input = new TimelineEvent(CurrentFrame, CurrentFrame, time, "key", VirtualKey: virtualKey, ScanCode: scanCode, Key: key,
+                KeyState: down ? "down" : "up", Repeat: repeat, Extended: extended, Injected: injected);
+            if (active) events.Add(input);
+            else if (resume.HasValue) resumedInputs.Add(input);
+        }
+    }
     public void Resume(DateTimeOffset time) { lock (gate) { if (!closed) resume = time; } }
-    public void Stop() { lock (gate) { active = false; closed = true; resumedClicks.Clear(); } }
+    public void Stop() { lock (gate) { active = false; closed = true; resumedInputs.Clear(); } }
     public TimelineSnapshot Snapshot(int frameCount)
     {
         lock (gate)
