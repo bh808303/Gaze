@@ -2,7 +2,7 @@ namespace Gaze.Core;
 
 public sealed record TimelineEvent(int Frame, int RecordingFrame, DateTimeOffset ClockTime, string Kind,
     string? Process = null, string? Title = null, string? WindowId = null, string? Button = null,
-    int? ScreenX = null, int? ScreenY = null, int? X = null, int? Y = null, bool CarryOver = false, string? Scope = null);
+    int? ScreenX = null, int? ScreenY = null, int? X = null, int? Y = null, bool CarryOver = false, string? Scope = null, bool External = false);
 public sealed record ClockAnchor(int Frame, int RecordingFrame, DateTimeOffset ClockTime, string Reason, DateTimeOffset? TransitionTime = null);
 public sealed record TimelinePart(int Version, int FramesPerSecond, int FrameCount, int RecordingFirstFrame,
     DateTimeOffset RecordingStartTime, DateTimeOffset PartStartTime, IReadOnlyList<ClockAnchor> ClockAnchors, IReadOnlyList<TimelineEvent> Events);
@@ -61,7 +61,7 @@ public sealed class RecordingTimeline
                 foreach (var window in windows.Values)
                 {
                     var previousWindow = events.LastOrDefault(e => e.Kind == "window" && e.Scope == window.Scope);
-                    if (previousWindow == null || previousWindow.WindowId != window.WindowId || previousWindow.Process != window.Process || previousWindow.Title != window.Title)
+                    if (previousWindow == null || previousWindow.External != window.External || previousWindow.WindowId != window.WindowId || previousWindow.Process != window.Process || previousWindow.Title != window.Title)
                         events.Add(window with { Frame = frame, RecordingFrame = frame, ClockTime = time });
                 }
                 resume = null;
@@ -71,13 +71,14 @@ public sealed class RecordingTimeline
             active = true;
         }
     }
-    public void Window(string process, string title, string id, DateTimeOffset time, string scope = "foreground")
+    public void Window(string? process, string? title, string? id, DateTimeOffset time, string scope = "foreground", bool external = false)
     {
         lock (gate)
         {
+            if (external) process = title = id = null;
             windows.TryGetValue(scope, out var previous);
-            if (closed || (previous?.Process == process && previous.Title == title && previous.WindowId == id)) return;
-            var window = new TimelineEvent(CurrentFrame, CurrentFrame, time, "window", process, title, id, Scope: scope);
+            if (closed || (previous != null && previous.External == external && previous.Process == process && previous.Title == title && previous.WindowId == id)) return;
+            var window = new TimelineEvent(CurrentFrame, CurrentFrame, time, "window", process, title, id, Scope: scope, External: external);
             windows[scope] = window;
             if (active) events.Add(window);
         }

@@ -19,7 +19,7 @@ internal static class RecordingMetadata
         {
             text.Append("[CHAPTER]\nTIMEBASE=1/").Append(part.FramesPerSecond)
                 .Append("\nSTART=").Append(windows[i].Frame).Append("\nEND=").Append(i + 1 < windows.Length ? windows[i + 1].Frame : part.FrameCount)
-                .Append("\ntitle=").Append(Escape($"{windows[i].Process} — {windows[i].Title}".Replace('\r', ' ').Replace('\n', ' '))).Append('\n');
+                .Append("\ntitle=").Append(Escape((windows[i].External ? "Outside recorded area" : $"{windows[i].Process} — {windows[i].Title}").Replace('\r', ' ').Replace('\n', ' '))).Append('\n');
         }
         return text.ToString();
     }

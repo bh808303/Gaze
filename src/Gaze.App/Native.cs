@@ -6,6 +6,7 @@ namespace Gaze.App;
 internal static class Native
 {
     [DllImport("user32.dll")] internal static extern nint GetForegroundWindow();
+    [DllImport("user32.dll")] internal static extern nint GetAncestor(nint hwnd, uint flags);
     [DllImport("user32.dll")] private static extern nint GetDesktopWindow();
     [DllImport("user32.dll")] private static extern nint GetShellWindow();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(nint hwnd, StringBuilder name, int length);

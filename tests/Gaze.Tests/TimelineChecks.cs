@@ -5,6 +5,35 @@ internal static class TimelineChecks
     internal static void Run(Action<string, Action> test)
     {
         var start = new DateTimeOffset(2026, 10, 11, 9, 0, 0, TimeSpan.FromHours(2));
+        test("Foreign window details are removed before storage and stay removed across pause and split carry-over", () =>
+        {
+            var timeline = new RecordingTimeline(5);
+            timeline.Window("mail", "Recorded invoice", "1", start, "captured");
+            timeline.Window("mail", "Recorded invoice", "1", start); timeline.Frame(start);
+            timeline.Window("secret-process", "PRIVATE CUSTOMER TITLE", "secret-window-id", start.AddMilliseconds(20), external: true);
+            timeline.Frame(start.AddMilliseconds(200)); timeline.Pause(start.AddMilliseconds(220));
+            timeline.Window("another-secret", "ANOTHER SECRET", "another-id", start.AddSeconds(1), external: true);
+            timeline.Resume(start.AddSeconds(2)); timeline.Frame(start.AddSeconds(2.2));
+            var snapshot = timeline.Snapshot(3);
+            Require(snapshot.Events.Where(e => e.External).All(e => e.Process == null && e.Title == null && e.WindowId == null), "Foreign details reached storage");
+            foreach (var part in new[] { snapshot.Slice(0, 3), snapshot.Slice(1, 1), snapshot.Slice(2, 1) })
+            {
+                var json = System.Text.Json.JsonSerializer.Serialize(part);
+                Require(!json.Contains("SECRET", StringComparison.OrdinalIgnoreCase) && !json.Contains("secret-window-id"), "Foreign details leaked into output");
+                Require(part.Events.Last(e => e.Scope == "foreground").External, "External context did not replace the recorded foreground context");
+                Require(part.Events.Any(e => e.Scope == "captured" && e.Title == "Recorded invoice"), "Recorded context was lost");
+            }
+        });
+        test("Timeline boundary includes recorded relationships and overlapping monitor windows, excluding other monitors and gaps", () =>
+        {
+            var areas = new[] { new System.Drawing.Rectangle(-100, 0, 100, 100), new System.Drawing.Rectangle(100, 0, 100, 100) };
+            Require(Gaze.App.TimelineBoundary.IncludesWindow(CaptureMode.Window, true, default, areas), "Recorded window or owned dialog was excluded");
+            Require(!Gaze.App.TimelineBoundary.IncludesWindow(CaptureMode.Window, false, areas[0], areas), "Unrelated window was included by overlap");
+            Require(Gaze.App.TimelineBoundary.IncludesWindow(CaptureMode.CurrentMonitor, false, new(-110, 0, 20, 20), new[] { areas[0] }), "Partly overlapping window was excluded");
+            Require(!Gaze.App.TimelineBoundary.IncludesWindow(CaptureMode.CurrentMonitor, false, areas[1], new[] { areas[0] }), "Other-monitor window was included");
+            Require(Gaze.App.TimelineBoundary.IncludesWindow(CaptureMode.AllMonitors, false, areas[1], areas), "Captured second monitor was excluded");
+            Require(!Gaze.App.TimelineBoundary.IncludesPoint(new(50, 50), areas) && Gaze.App.TimelineBoundary.IncludesPoint(new(-50, 50), areas), "Monitor-gap click filtering failed");
+        });
         test("Slice orders events by frame and clock time while retaining equal-time processing order", () =>
         {
             var timeline = new RecordingTimeline(5); timeline.Frame(start);

@@ -25,7 +25,7 @@ internal static class MetadataChecks
         var timeline = new RecordingTimeline(fps); timeline.Window("mail", title, "1", startTime);
         for (int i = 0; i < frames; i++)
         {
-            if (i == 6) { timeline.Pause(startTime.AddSeconds(1.1)); timeline.Window("browser", "Ticket", "2", startTime.AddSeconds(9)); timeline.Resume(startTime.AddSeconds(10)); }
+            if (i == 6) { timeline.Pause(startTime.AddSeconds(1.1)); timeline.Window("private-browser", "PRIVATE CUSTOMER", "private-id", startTime.AddSeconds(9), external: true); timeline.Resume(startTime.AddSeconds(10)); }
             timeline.Frame(startTime.AddSeconds(i / (double)fps + (i >= 6 ? 10 : 0)));
             timeline.Click("left", 100 + i, 200 + i, i, i, startTime.AddSeconds(i / (double)fps + (i >= 6 ? 10 : 0)).AddMilliseconds(30));
         }
@@ -55,6 +55,10 @@ internal static class MetadataChecks
                 Require(root.GetProperty("events").EnumerateArray().First(e => e.GetProperty("kind").GetString() == "window").GetProperty("title").GetString() == title, "Event title was altered");
                 Require(root.GetProperty("chapters")[0].GetProperty("title").GetString() == "mail — " + title.Replace('\n', ' '), "Chapter title was altered");
                 Require(root.GetProperty("chapters").GetArrayLength() == 2, "Window chapters are missing");
+                Require(root.GetProperty("chapters")[1].GetProperty("title").GetString() == "Outside recorded area", "External chapter label is not neutral");
+                var outside = root.GetProperty("events").EnumerateArray().Single(e => e.TryGetProperty("external", out var flag) && flag.GetBoolean());
+                Require(!outside.TryGetProperty("title", out _) && !outside.TryGetProperty("process", out _) && !outside.TryGetProperty("windowId", out _), "External identity leaked into MP4 text track");
+                Require(!root.GetRawText().Contains("PRIVATE CUSTOMER") && !root.GetRawText().Contains("private-browser"), "Foreign identity leaked into metadata");
                 Require(root.GetProperty("clockAnchors")[1].GetProperty("frame").GetInt32() == 6, "Resume anchor is missing");
             });
             test("Failed metadata rewrite keeps the plain video and logs a warning", () =>

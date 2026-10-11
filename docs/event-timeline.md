@@ -31,7 +31,7 @@ Output events are stably sorted by local frame, then clockTime, after split cont
 | Kind | Additional fields | Meaning |
 | --- | --- | --- |
 | start | None | First sampled frame |
-| window | process, title, windowId, scope | Window/title change with scope `foreground` or `captured`; original title retained |
+| window | process, title, windowId, scope, external | Window/title change with scope `foreground` or `captured`; title retained within capture boundary; external events omit process, title and windowId |
 | click | button, screenX, screenY, x, y | Button press inside captured area; desktop screen pixels plus encoded-video pixels |
 | pause | None | Capture pause request |
 | resume | None | Resume request, associated with first resumed frame |
@@ -50,3 +50,9 @@ The original plain video is replaced only after the remux and track flag update 
 When splitting is enabled, each completed part is checked against 29,000,000 bytes after adding its metadata. A small original that grows over the cap is split too. Splitting re-encodes from the original and then stream-copies metadata onto the part. The original is removed only after all size-checked parts are published.
 
 Source references: [FFmpeg stream-copy and metadata mapping](https://ffmpeg.org/ffmpeg.html), [FFmetadata and MOV/MP4 metadata](https://ffmpeg.org/ffmpeg-formats.html), and the bundled FFmpeg 7.1 source `libavformat/movenc.c:enable_tracks` / `libavformat/mov.c:mov_read_tkhd` for subtitle defaults.
+
+## Capture boundary
+
+Window mode checks root-window and owned-dialog relationships before reading a title or process name. A foreign foreground window produces a neutral `external: true` event, clearing prior foreground context without storing its identity; foreign title changes are deduplicated as the same neutral context. Captured-scope title notifications follow the currently captured root, including child notifications normalized with GA_ROOT. An owned dialog has its own root and is allowed through the recording's owner relationship, not just a shared process ID. Monitor modes require overlap with an actual captured monitor rectangle, including Main monitor mode; foreground location changes refresh that boundary check. Whole titles are retained for partly overlapping windows. Clicks outside the captured window bounds or outside all captured monitor rectangles are discarded. Region capture is not currently available; no new title settings or exclusion list are added. Existing recordings are unchanged.
+
+External context survives pause/resume and split carry-over without identity fields. A monitor-mode external chapter uses the neutral label `Outside recorded area`; window-mode chapters continue to describe captured windows rather than unrelated focus changes.

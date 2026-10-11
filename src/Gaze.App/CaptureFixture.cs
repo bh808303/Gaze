@@ -174,8 +174,19 @@ internal sealed class CaptureFixture : Form
         var clicks = allEvents.Where(e => e.GetProperty("kind").GetString() == "click").ToArray();
         if (clicks.Length < 5 || clicks.GroupBy(e => e.GetProperty("frame").GetInt32()).Max(g => g.Count()) < 4)
             throw new InvalidOperationException("Rapid clicks between video frames were not preserved.");
-        if (!allEvents.Any(e => e.GetProperty("kind").GetString() == "window" && e.GetProperty("title").GetString()!.Contains("Invoice 4242")) || chapterCount < 2)
+        if (!allEvents.Any(e => e.GetProperty("kind").GetString() == "window" && e.TryGetProperty("title", out var title) && title.GetString()!.Contains("Invoice 4242")) || chapterCount < 2)
             throw new InvalidOperationException("Actual window title changes or chapters are missing.");
+        if (!args.Contains("--all-monitors"))
+        {
+            var external = allEvents.Where(e => e.TryGetProperty("external", out var flag) && flag.GetBoolean()).ToArray();
+            if (external.Length == 0 || external.Any(e => e.TryGetProperty("title", out _) || e.TryGetProperty("process", out _) || e.TryGetProperty("windowId", out _)))
+                throw new InvalidOperationException("Foreign foreground context was not anonymized.");
+            if (allEvents.Any(e => e.TryGetProperty("title", out var title) && title.GetString() == "Unrelated covering window"))
+                throw new InvalidOperationException("The unrelated covering window's title leaked.");
+            if (!allEvents.Any(e => e.TryGetProperty("title", out var title) && title.GetString() == "Owned fixture dialog"))
+                throw new InvalidOperationException("Captured owned dialog title was lost.");
+            Log("PASS: external foreground events have no identity; captured owned dialog retains its title.");
+        }
         if (!anchors.Any(a => a.GetProperty("reason").GetString() == "resume") || !allEvents.Any(e => e.GetProperty("kind").GetString() == "pause"))
             throw new InvalidOperationException("Pause/resume clock mapping is missing.");
         Log($"PASS: {clicks.Length} independent clicks, {chapterCount} chapters, resume clock anchor; event track extracted from actual recording.");

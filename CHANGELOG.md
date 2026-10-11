@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Restrict timeline titles to the recorded window/owned dialogs or windows overlapping captured monitors. Replace foreign foreground context with neutral external events without identity fields; preserve this boundary through pause and split carry-over. Exclude clicks in uncaptured desktop gaps.
+
 - Keep Compact's 10-second maximum keyframe interval when re-encoding split parts; Original remains at 2 seconds. Continue checking final part sizes after metadata.
 
 - Order output timeline events by frame and clock time, retaining processing order for equal timestamps, including split parts and carried-over context.

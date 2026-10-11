@@ -33,6 +33,7 @@ internal sealed class Capture : IDisposable
     private RecordingTimeline? timeline;
     private InputEvents? input;
     private Rectangle desktopBounds;
+    private IReadOnlyList<Rectangle> captureAreas = [];
     private CapturedFrame? previous;
     internal event Action<IReadOnlyList<string>>? Completed;
     internal event Action<string>? Failed;
@@ -81,13 +82,14 @@ internal sealed class Capture : IDisposable
             if (screens.Length == 0) throw new InvalidOperationException("The armed monitor is no longer connected. Cancel and arm again.");
             var bounds = screens.Select(s => s.Bounds).Aggregate(Rectangle.Union); Canvas = Even(bounds.Size); ValidateCanvas(Canvas);
             desktopBounds = bounds;
+            captureAreas = screens.Select(screen => screen.Bounds).ToArray();
             foreach (var screen in screens)
             {
                 var monitor = Native.MonitorFromPoint(new Point(screen.Bounds.Left + 1, screen.Bounds.Top + 1), 2);
                 monitors.Add((screen.DeviceName, new Rectangle(screen.Bounds.X - bounds.X, screen.Bounds.Y - bounds.Y, screen.Bounds.Width, screen.Bounds.Height), new GraphicsSource(monitor, true, fps)));
             }
         }
-        try { input = new InputEvents(QueueClick, timeline.Window, Warn, () => mode == CaptureMode.Window ? target : 0); }
+        try { input = new InputEvents(QueueClick, timeline.Window, Warn, () => mode == CaptureMode.Window ? target : 0, mode, root, captureAreas); }
         catch (Exception e) { Warn($"Input event recording unavailable: {e.Message}"); }
         cancel = new(); worker = Task.Run(() => Encode(cancel.Token));
     }
@@ -237,6 +239,7 @@ internal sealed class Capture : IDisposable
         lock (gate)
         {
             var source = mode == CaptureMode.Window ? clickSource : desktopBounds;
+            if (mode != CaptureMode.Window && !TimelineBoundary.IncludesPoint(point, captureAreas)) return;
             var destination = mode == CaptureMode.Window ? clickDestination : new Rectangle(Point.Empty, desktopBounds.Size);
             if (source.Width <= 0 || source.Height <= 0 || !source.Contains(point)) return;
             int x = destination.X + (int)((point.X - source.X) * (long)destination.Width / source.Width);
