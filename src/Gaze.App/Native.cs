@@ -56,6 +56,10 @@ internal static class Native
     {
         var text = new StringBuilder(512); GetWindowText(hwnd, text, text.Capacity); return text.ToString();
     }
+    internal static string ClassName(nint hwnd)
+    {
+        var name = new StringBuilder(256); GetClassName(hwnd, name, name.Capacity); return name.ToString();
+    }
     internal static Rectangle Bounds(nint hwnd)
     {
         if (DwmGetWindowAttribute(hwnd, 9, out Rect rect, Marshal.SizeOf<Rect>()) != 0 && !GetWindowRect(hwnd, out rect))
@@ -70,6 +74,41 @@ internal static class Native
             hwnd = GetWindow(hwnd, 4);
         }
         return false;
+    }
+    [StructLayout(LayoutKind.Sequential)] private struct GuiThreadInfo
+    {
+        internal uint Size, Flags;
+        internal nint Active, Focus, Capture, MenuOwner, MoveSize, Caret;
+        internal Rect CaretBounds;
+    }
+    [StructLayout(LayoutKind.Sequential)] private struct ComboBoxInfo
+    {
+        internal uint Size; internal Rect Item, Button; internal uint State;
+        internal nint Combo, Edit, List;
+    }
+    [DllImport("user32.dll")] private static extern bool GetGUIThreadInfo(uint thread, ref GuiThreadInfo info);
+    [DllImport("user32.dll")] private static extern bool GetComboBoxInfo(nint hwnd, ref ComboBoxInfo info);
+    internal static bool RecordedClickWindow(nint hwnd, nint recordingRoot, nint capturedWindow)
+    {
+        bool Related(nint candidate)
+        {
+            if (candidate == 0) return false;
+            candidate = GetAncestor(candidate, 2);
+            return candidate == capturedWindow || OwnedBy(candidate, recordingRoot);
+        }
+        if (Related(hwnd)) return true;
+        var thread = GetWindowThreadProcessId(hwnd, out _);
+        var gui = new GuiThreadInfo { Size = (uint)Marshal.SizeOf<GuiThreadInfo>() };
+        if (thread == 0 || !GetGUIThreadInfo(thread, ref gui)) return false;
+        var name = ClassName(hwnd);
+        bool menu = name == "#32768" && (gui.Flags & 4) != 0 && Related(gui.MenuOwner);
+        bool combo = false;
+        if (name == "ComboLBox" && Related(gui.Focus))
+        {
+            var info = new ComboBoxInfo { Size = (uint)Marshal.SizeOf<ComboBoxInfo>() };
+            combo = GetComboBoxInfo(gui.Focus, ref info) && info.List == hwnd;
+        }
+        return TimelineBoundary.IncludesPopup(name, menu, combo);
     }
     internal static nint FollowedWindow(nint root, nint current)
     {

@@ -24,6 +24,19 @@ internal sealed class CaptureFixture : Form
     private bool menuOpened, menuInputSent, menuItemActivated;
     private Point menuOpenPoint, menuItemPoint;
     private double menuShownAt;
+    private readonly ComboBox testCombo = new() { Location = new Point(100, 400), Width = 240, DropDownStyle = ComboBoxStyle.DropDownList };
+    private bool nativeMenuStarted, nativeMenuDown, nativeMenuUp, nativeMenuActivated, comboOpened, comboDown, comboUp;
+    private double nativeMenuShownAt, nativeMenuDownAt, comboShownAt, comboDownAt;
+    private Point nativeMenuPoint, comboPoint;
+    private Point popupOriginalCursor;
+    private bool syntheticButtonHeld;
+    [DllImport("user32.dll")] private static extern nint CreatePopupMenu();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool AppendMenu(nint menu, uint flags, nuint id, string text);
+    [DllImport("user32.dll")] private static extern uint TrackPopupMenu(nint menu, uint flags, int x, int y, int reserved, nint owner, nint rectangle);
+    [DllImport("user32.dll")] private static extern bool DestroyMenu(nint menu);
+    [StructLayout(LayoutKind.Sequential)] private struct ComboInfo { internal uint Size; internal RectangleItems Item, Button; internal uint State; internal nint Combo, Edit, List; }
+    [StructLayout(LayoutKind.Sequential)] private struct RectangleItems { internal int Left, Top, Right, Bottom; }
+    [DllImport("user32.dll")] private static extern bool GetComboBoxInfo(nint combo, ref ComboInfo info);
     [StructLayout(LayoutKind.Sequential)] private struct MouseInput { internal int X, Y; internal uint Data, Flags, Time; internal nuint Extra; }
     [StructLayout(LayoutKind.Explicit, Size = 40)] private struct TestInput { [FieldOffset(0)] internal uint Type; [FieldOffset(8)] internal MouseInput Mouse; }
     [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
@@ -43,6 +56,8 @@ internal sealed class CaptureFixture : Form
         Controls.Add(content);
         testMenu.Items.Add("Synthetic menu action", null, (_, _) => menuItemActivated = true);
         content.ContextMenuStrip = testMenu;
+        testCombo.Items.AddRange(new object[] { "First synthetic option", "Second synthetic option" }); testCombo.SelectedIndex = 0;
+        Controls.Add(testCombo); testCombo.BringToFront();
         Shown += async (_, _) =>
         {
             Native.ShowWindow(Handle, 5);
@@ -186,7 +201,44 @@ internal sealed class CaptureFixture : Form
             }
             if (elapsed > 8 && !paused) { paused = true; capture!.Pause(); Log("Paused"); }
             if (elapsed > 9.5 && !resumed) { resumed = true; capture!.Resume(); Log("Resumed"); }
-            if (elapsed > 12 && !stopping)
+            if (args.Contains("--event-check") && !args.Contains("--all-monitors") && resumed && elapsed > 10.3 && !nativeMenuStarted)
+            {
+                nativeMenuStarted = true; nativeMenuShownAt = elapsed;
+                var menu = CreatePopupMenu();
+                if (menu == 0 || !AppendMenu(menu, 0, 101, "Native synthetic menu action")) throw new InvalidOperationException("Cannot create native test menu.");
+                var point = PointToScreen(new Point(350, 260));
+                try { nativeMenuActivated = TrackPopupMenu(menu, 0x100, point.X, point.Y, 0, Handle, 0) == 101; }
+                finally { DestroyMenu(menu); }
+            }
+            if (nativeMenuStarted && !nativeMenuDown && elapsed > nativeMenuShownAt + 0.35)
+            {
+                nint popup = 0;
+                Native.EnumWindows((hwnd, _) =>
+                {
+                    Native.GetWindowThreadProcessId(hwnd, out var pid);
+                    if (pid == (uint)Environment.ProcessId && Native.IsWindowVisible(hwnd) && Native.ClassName(hwnd) == "#32768") { popup = hwnd; return false; }
+                    return true;
+                }, 0);
+                if (popup == 0) throw new InvalidOperationException("Native #32768 menu was not found.");
+                var bounds = Native.WindowBounds(popup); nativeMenuPoint = new Point(bounds.Left + 40, bounds.Top + bounds.Height / 2);
+                Log($"Native menu class {Native.ClassName(popup)}; owner recognized: {Native.OwnedBy(popup, Handle)}");
+                InjectButton(nativeMenuPoint, true, popup); nativeMenuDown = true; nativeMenuDownAt = elapsed;
+            }
+            if (nativeMenuDown && !nativeMenuUp && elapsed > nativeMenuDownAt + 0.4)
+            { InjectButton(nativeMenuPoint, false, 0); nativeMenuUp = true; }
+            if (nativeMenuUp && nativeMenuActivated && !comboOpened && elapsed > 11.5)
+            { testCombo.Focus(); testCombo.DroppedDown = true; comboOpened = true; comboShownAt = elapsed; }
+            if (comboOpened && !comboDown && elapsed > comboShownAt + 0.35)
+            {
+                var info = new ComboInfo { Size = (uint)Marshal.SizeOf<ComboInfo>() };
+                if (!GetComboBoxInfo(testCombo.Handle, ref info) || !Native.IsWindowVisible(info.List)) throw new InvalidOperationException("Combo dropdown was not found.");
+                var bounds = Native.WindowBounds(info.List); comboPoint = new Point(bounds.Left + 40, bounds.Top + testCombo.ItemHeight * 3 / 2 + 2);
+                Log($"Combo popup class {Native.ClassName(info.List)}; owner recognized: {Native.OwnedBy(info.List, Handle)}");
+                InjectButton(comboPoint, true, info.List); comboDown = true; comboDownAt = elapsed;
+            }
+            if (comboDown && !comboUp && elapsed > comboDownAt + 0.4)
+            { InjectButton(comboPoint, false, 0); comboUp = true; }
+            if (elapsed > 14 && !stopping)
             {
                 stopping = true;
                 Log("Stopping"); capture!.Stop();
@@ -202,6 +254,18 @@ internal sealed class CaptureFixture : Form
         var inputs = new[] { new TestInput { Type = 0, Mouse = new MouseInput { Flags = right ? 8u : 2u } }, new TestInput { Type = 0, Mouse = new MouseInput { Flags = right ? 16u : 4u } } };
         try { if (SendInput(2, inputs, Marshal.SizeOf<TestInput>()) != 2) throw new InvalidOperationException("Could not inject synthetic menu click."); }
         finally { SetCursorPos(original.X, original.Y); }
+    }
+    private void InjectButton(Point point, bool down, nint expectedWindow)
+    {
+        var hit = Native.WindowFromPoint(point); Native.GetWindowThreadProcessId(hit, out var pid);
+        if (pid != (uint)Environment.ProcessId || (expectedWindow != 0 && Native.GetAncestor(hit, 2) != Native.GetAncestor(expectedWindow, 2)))
+            throw new InvalidOperationException("Synthetic popup button target is covered; no input injected.");
+        if (down) Native.GetCursorPos(out popupOriginalCursor);
+        SetCursorPos(point.X, point.Y);
+        var inputs = new[] { new TestInput { Type = 0, Mouse = new MouseInput { Flags = down ? 2u : 4u } } };
+        if (SendInput(1, inputs, Marshal.SizeOf<TestInput>()) != 1) throw new InvalidOperationException("Synthetic popup input failed.");
+        syntheticButtonHeld = down;
+        if (!down) SetCursorPos(popupOriginalCursor.X, popupOriginalCursor.Y);
     }
     private void CheckEventMetadata(IReadOnlyList<string> paths)
     {
@@ -226,11 +290,14 @@ internal sealed class CaptureFixture : Form
             throw new InvalidOperationException("Actual window title changes or chapters are missing.");
         if (!args.Contains("--all-monitors"))
         {
-            if (!coverInputSent || clicks.Length != 7) throw new InvalidOperationException($"Expected five rapid clicks plus two menu clicks, got {clicks.Length}; covering-window click filtering or menu retention failed.");
+            if (!coverInputSent || clicks.Length != 9) throw new InvalidOperationException($"Expected five rapid clicks plus four popup clicks, got {clicks.Length}; covering-window click filtering or popup retention failed.");
             bool HasClick(Point point, string button) => clicks.Any(e => e.GetProperty("button").GetString() == button && e.GetProperty("screenX").GetInt32() == point.X && e.GetProperty("screenY").GetInt32() == point.Y);
             if (!menuInputSent || !menuItemActivated || !HasClick(menuOpenPoint, "right") || !HasClick(menuItemPoint, "left"))
                 throw new InvalidOperationException("Context-menu opening or item click was lost.");
             Log("PASS: recorded-app context-menu opening and item clicks retained; menu action executed.");
+            if (!nativeMenuActivated || !nativeMenuUp || !HasClick(nativeMenuPoint, "left") || !comboUp || testCombo.SelectedIndex != 1 || !HasClick(comboPoint, "left"))
+                throw new InvalidOperationException("Native menu or combo-list click/action was lost.");
+            Log("PASS: native #32768 menu and ComboLBox item clicks retained while popups stayed open across frame ticks; both actions executed.");
             var external = allEvents.Where(e => e.TryGetProperty("external", out var flag) && flag.GetBoolean()).ToArray();
             if (external.Length == 0 || external.Any(e => e.TryGetProperty("title", out _) || e.TryGetProperty("process", out _) || e.TryGetProperty("windowId", out _)))
                 throw new InvalidOperationException("Foreign foreground context was not anonymized.");
@@ -246,6 +313,11 @@ internal sealed class CaptureFixture : Form
     }
     private void Finish(bool success, string detail)
     {
+        if (syntheticButtonHeld)
+        {
+            SendInput(1, new[] { new TestInput { Type = 0, Mouse = new MouseInput { Flags = 4 } } }, Marshal.SizeOf<TestInput>());
+            syntheticButtonHeld = false; SetCursorPos(popupOriginalCursor.X, popupOriginalCursor.Y);
+        }
         timer.Stop(); testMenu.Close(); overlay.Close(); dialog?.Close(); cover?.Close();
         Log(detail);
         File.WriteAllText(Path.Combine(evidence, "result.json"), JsonSerializer.Serialize(new { success, detail, canvas = capture?.Canvas, events }, new JsonSerializerOptions { WriteIndented = true }));

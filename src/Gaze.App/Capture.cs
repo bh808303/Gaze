@@ -248,7 +248,7 @@ internal sealed class Capture : IDisposable
             {
                 // Hit-test on the consumer, never inside the low-level mouse hook.
                 var hit = Native.GetAncestor(Native.WindowFromPoint(point), 2);
-                if (hit == 0 || (hit != target && !Native.OwnedBy(hit, recordingRoot))) return;
+                if (hit == 0 || !Native.RecordedClickWindow(hit, recordingRoot, target)) return;
             }
             int x = destination.X + (int)((point.X - source.X) * (long)destination.Width / source.Width);
             int y = destination.Y + (int)((point.Y - source.Y) * (long)destination.Height / source.Height);

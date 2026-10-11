@@ -5,6 +5,15 @@ internal static class TimelineChecks
     internal static void Run(Action<string, Action> test)
     {
         var start = new DateTimeOffset(2026, 10, 11, 9, 0, 0, TimeSpan.FromHours(2));
+        test("Ownerless popup acceptance requires a recorded native menu owner or exact recorded combo list", () =>
+        {
+            Require(Gaze.App.TimelineBoundary.IncludesPopup("#32768", true, false), "Recorded native menu rejected");
+            Require(Gaze.App.TimelineBoundary.IncludesPopup("ComboLBox", false, true), "Recorded combo list rejected");
+            Require(!Gaze.App.TimelineBoundary.IncludesPopup("#32768", false, true), "Unrelated menu accepted by combo relationship");
+            Require(!Gaze.App.TimelineBoundary.IncludesPopup("ComboLBox", true, false), "Unrelated combo accepted by menu relationship");
+            Require(!Gaze.App.TimelineBoundary.IncludesPopup("UnrelatedWindow", true, true), "Same-thread arbitrary window accepted");
+            Require(!Gaze.App.TimelineBoundary.IncludesPopup("#32768", false, false), "Foreign menu accepted");
+        });
         test("Location events ignore window capture and child controls, refreshing monitor details only at boundary transitions", () =>
         {
             Require(!Gaze.App.TimelineBoundary.HandlesLocation(CaptureMode.Window, 1, 1, 1, 0, 0), "Window-mode movement was handled");

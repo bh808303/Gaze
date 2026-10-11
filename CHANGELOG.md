@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Retain ownerless native menu (`#32768`) and combo dropdown (`ComboLBox`) clicks when Windows associates their active menu owner or exact focused-combo list with the recorded window. Add native regression steps holding both popups open across frame ticks; unrelated windows remain excluded.
+
 - Add a guarded native fixture step that right-clicks the recorded window, selects a context-menu item and verifies both clicks survive timeline extraction while unrelated covering-window clicks remain excluded.
 
 - Ignore location-change notifications in window capture and child-control moves in monitor capture. Cache foreground monitor-boundary state so ordinary moves do not reread process/title details. Window-mode queued clicks also reject unrelated covering windows when processed.
