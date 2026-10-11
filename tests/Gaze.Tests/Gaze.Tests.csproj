@@ -4,4 +4,5 @@
   <ItemGroup><Compile Include="../../src/Gaze.App/RecordingSplitter.cs" Link="RecordingSplitter.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../../src/Gaze.App/RecordingMetadata.cs" Link="RecordingMetadata.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../../src/Gaze.App/Mp4EventTrack.cs" Link="Mp4EventTrack.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../../src/Gaze.App/ClickQueue.cs" Link="ClickQueue.cs" /></ItemGroup>
 </Project>

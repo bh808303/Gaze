@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Queue mouse-hook clicks without waiting for drawing or timeline locks. Drain accepted clicks before frame advancement, pause and stop; defer warning file writes to the encoder worker outside the drawing lock.
+
 - Protect event titles containing backslashes/newlines from subtitle conversion using versioned base64 payloads. The timeline reader supports legacy JSON and warns/skips malformed packets instead of losing the entire timeline.
 
 - Automatically embed foreground process/window-title chapters, a disabled event text track with independently captured mouse clicks, and exact event/start/resume clock timestamps with UTC offsets. Preserve original titles and enable metadata automatically.

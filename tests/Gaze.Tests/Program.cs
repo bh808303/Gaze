@@ -1,6 +1,34 @@
 using Gaze.Core;
 
 var failures = 0;
+Test("Mouse producers keep queuing while the drawing consumer is blocked, preserving order and clock times", () =>
+{
+    var queue = new Gaze.App.ClickQueue();
+    var clock = DateTimeOffset.Now;
+    using var entered = new ManualResetEventSlim();
+    using var release = new ManualResetEventSlim();
+    var received = new List<int>();
+    queue.Enqueue("left", new System.Drawing.Point(0, 0), clock);
+    var consumer = Task.Run(() => queue.Drain((button, point, time) =>
+    {
+        entered.Set(); release.Wait(); received.Add(point.X);
+    }));
+    try
+    {
+        if (!entered.Wait(TimeSpan.FromSeconds(5))) throw new Exception("Consumer never started");
+        var producer = Task.Run(() =>
+        {
+            for (int i = 1; i <= 1000; i++) queue.Enqueue("right", new System.Drawing.Point(i, 0), clock.AddMilliseconds(i));
+        });
+        if (!producer.Wait(TimeSpan.FromSeconds(1))) throw new Exception("Mouse producer blocked behind consumer");
+    }
+    finally { release.Set(); consumer.GetAwaiter().GetResult(); }
+    queue.Drain((button, point, time) =>
+    {
+        Equal("right", button); Equal(clock.AddMilliseconds(point.X), time); received.Add(point.X);
+    });
+    Equal(true, received.SequenceEqual(Enumerable.Range(0, 1001)));
+});
 void Test(string name, Action test)
 {
     try { test(); Console.WriteLine($"PASS {name}"); }

@@ -11,6 +11,8 @@ internal enum RecorderStatus { Idle, Recording, Paused, Finishing }
 internal sealed class Capture : IDisposable
 {
     private readonly object gate = new();
+    private readonly ClickQueue pendingClicks = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<string> pendingWarnings = new();
     private GraphicsSource? window;
     private nint target;
     private readonly List<(string Device, Rectangle Bounds, GraphicsSource Source)> monitors = [];
@@ -85,7 +87,7 @@ internal sealed class Capture : IDisposable
                 monitors.Add((screen.DeviceName, new Rectangle(screen.Bounds.X - bounds.X, screen.Bounds.Y - bounds.Y, screen.Bounds.Width, screen.Bounds.Height), new GraphicsSource(monitor, true, fps)));
             }
         }
-        try { input = new InputEvents(RecordClick, timeline.Window, Warn, () => mode == CaptureMode.Window ? target : 0); }
+        try { input = new InputEvents(QueueClick, timeline.Window, Warn, () => mode == CaptureMode.Window ? target : 0); }
         catch (Exception e) { Warn($"Input event recording unavailable: {e.Message}"); }
         cancel = new(); worker = Task.Run(() => Encode(cancel.Token));
     }
@@ -117,8 +119,10 @@ internal sealed class Capture : IDisposable
             {
                 do
                 {
+                    FlushWarnings();
                     lock (gate)
                     {
+                        pendingClicks.Drain(RecordClick);
                         if (paused || stopping) continue;
                         timeline!.Frame(DateTimeOffset.Now);
                         Render(canvas);
@@ -160,6 +164,7 @@ internal sealed class Capture : IDisposable
             if (encoder is { HasExited: false }) encoder.Kill(); StatusChanged?.Invoke(RecorderStatus.Idle);
             if (!disposed) Failed?.Invoke($"{e.Message}\nWorking file retained at {partial}");
         }
+        finally { FlushWarnings(); }
     }
     private bool Ready() { lock (gate) return mode == CaptureMode.Window ? window?.Latest != null : monitors.All(m => m.Source.Latest != null); }
     private void Render(Bitmap canvas)
@@ -223,28 +228,38 @@ internal sealed class Capture : IDisposable
             try { input?.CapturedWindowChanged(hwnd); } catch (Exception e) { Warn($"Captured-window event could not be recorded: {e.Message}"); }
         }
     }
+    private void QueueClick(string button, Point point, DateTimeOffset time)
+    {
+        if (!paused && !stopping && !disposed) pendingClicks.Enqueue(button, point, time);
+    }
     private void RecordClick(string button, Point point, DateTimeOffset time)
     {
         lock (gate)
         {
-            if (paused || stopping || disposed) return;
             var source = mode == CaptureMode.Window ? clickSource : desktopBounds;
             var destination = mode == CaptureMode.Window ? clickDestination : new Rectangle(Point.Empty, desktopBounds.Size);
             if (source.Width <= 0 || source.Height <= 0 || !source.Contains(point)) return;
             int x = destination.X + (int)((point.X - source.X) * (long)destination.Width / source.Width);
             int y = destination.Y + (int)((point.Y - source.Y) * (long)destination.Height / source.Height);
             timeline?.Click(button, point.X, point.Y, x, y, time);
-            if (button == "left") { clickPoint = point; clickUntil = Environment.TickCount64 + 400; }
+            if (button == "left") { clickPoint = point; clickUntil = Environment.TickCount64 + 400 - Math.Max(0, (long)(DateTimeOffset.Now - time).TotalMilliseconds); }
         }
     }
     private void Warn(string message)
     {
-        try { lock (gate) File.AppendAllText(Path.Combine(folder, "Gaze-warnings.log"), $"{DateTimeOffset.Now:O} {message}{Environment.NewLine}"); }
-        catch (IOException) { } catch (UnauthorizedAccessException) { }
+        pendingWarnings.Enqueue($"{DateTimeOffset.Now:O} {message}{Environment.NewLine}");
     }
-    internal void Pause() { lock (gate) { paused = true; timeline?.Pause(DateTimeOffset.Now); } StatusChanged?.Invoke(RecorderStatus.Paused); }
+    private void FlushWarnings()
+    {
+        while (pendingWarnings.TryDequeue(out var message))
+        {
+            try { File.AppendAllText(Path.Combine(folder, "Gaze-warnings.log"), message); }
+            catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+    internal void Pause() { lock (gate) { paused = true; pendingClicks.Drain(RecordClick); timeline?.Pause(DateTimeOffset.Now); } StatusChanged?.Invoke(RecorderStatus.Paused); }
     internal void Resume() { lock (gate) { timeline?.Resume(DateTimeOffset.Now); paused = false; } StatusChanged?.Invoke(RecorderStatus.Recording); }
-    internal void Stop() { if (disposed) return; lock (gate) { stopping = true; timeline?.Stop(); } cancel?.Cancel(); }
+    internal void Stop() { if (disposed) return; lock (gate) { stopping = true; pendingClicks.Drain(RecordClick); timeline?.Stop(); } cancel?.Cancel(); }
     internal static void CopyFile(string path)
         => CopyFiles(new[] { path });
     internal static void CopyFiles(IReadOnlyList<string> paths)
