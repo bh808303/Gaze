@@ -3,10 +3,12 @@
 New MP4 files have three complementary representations:
 
 - Chapters named `process — title` at captured-window/title changes in selected-window mode, or foreground window/title changes in monitor modes.
-- A disabled-by-default `mov_text` track with handler name `Gaze events`. Each timed cue is UTF-8 JSON: `{"version":1,"events":[...]}`. Events sharing a video frame share a cue. Empty MP4 subtitle-clear packets have no events.
+- A disabled-by-default `mov_text` track with handler name `Gaze events`. Each timed cue is `gaze-base64-v1:` followed by base64-encoded UTF-8 JSON: `{"version":1,"events":[...]}`. This protects backslashes, newlines and markup from SubRip conversion. Events sharing a video frame share a cue. Empty MP4 subtitle-clear packets have no events.
 - A global `gaze_timeline` tag containing version, frame rate, frame count, original recording start, the part's original first frame, exact part start time, and clock anchors. The tag's events array is empty; events live in the timed track.
 
 `Read-Timeline.py` returns these as one JSON object, replacing the empty events array with all timed-track events and adding chapters in seconds. It uses one FFprobe subprocess, not image extraction. Run `python Read-Timeline.py recording.mp4`; pass `--probe <ffprobe-path>` if FFprobe is not beside the script or on PATH. Missing metadata produces an error and exit code 1.
+
+The reader also accepts legacy plain-JSON cues. Malformed event packets produce warnings on stderr and are skipped; valid packets remain available in the JSON output. Corrupted legacy titles cannot be recovered automatically.
 
 ## Positions and clocks
 

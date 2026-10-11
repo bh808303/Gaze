@@ -1,10 +1,36 @@
 """Read Gaze chapters, clock anchors, and event text in one FFprobe invocation."""
 import argparse
+import base64
+import binascii
 import json
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+
+
+def packet_events(packet):
+    data = bytearray()
+    for line in packet.get("data", "").splitlines():
+        if ":" in line:
+            hex_data = line.split(":", 1)[1].lstrip().split("  ", 1)[0].replace(" ", "")
+            data.extend(bytes.fromhex(hex_data))
+    if len(data) < 2:
+        raise ValueError("truncated timed-text packet")
+    size = int.from_bytes(data[:2], "big")
+    if not size:
+        return []
+    if len(data) < 2 + size:
+        raise ValueError("truncated timed-text payload")
+    text = data[2:2 + size].decode("utf-8")
+    prefix = "gaze-base64-v1:"
+    if text.startswith(prefix):
+        text = base64.b64decode(text[len(prefix):], validate=True).decode("utf-8")
+    payload = json.loads(text)  # Legacy recordings contain plain JSON.
+    events = payload["events"]
+    if not isinstance(events, list) or any(not isinstance(event, dict) for event in events):
+        raise ValueError("invalid event list")
+    return events
 
 
 def read_timeline(recording, probe):
@@ -25,17 +51,10 @@ def read_timeline(recording, probe):
     for packet in media.get("packets", []):
         if packet.get("stream_index") not in indexes:
             continue
-        data = bytearray()
-        for line in packet.get("data", "").splitlines():
-            if ":" in line:
-                hex_data = line.split(":", 1)[1].lstrip().split("  ", 1)[0].replace(" ", "")
-                data.extend(bytes.fromhex(hex_data))
-        if len(data) < 2:
-            continue
-        size = int.from_bytes(data[:2], "big")
-        if size:
-            payload = json.loads(data[2:2 + size].decode("utf-8"))
-            events.extend(payload["events"])
+        try:
+            events.extend(packet_events(packet))
+        except (ValueError, KeyError, TypeError, binascii.Error) as error:
+            print(f"Warning: skipped malformed Gaze event packet at {packet.get('pts_time', 'unknown')}s: {error}", file=sys.stderr)
     timeline["events"] = events
     timeline["chapters"] = [{"startSeconds": float(c["start_time"]), "endSeconds": float(c["end_time"]),
                              "title": c.get("tags", {}).get("title", "")} for c in media.get("chapters", [])]

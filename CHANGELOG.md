@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Protect event titles containing backslashes/newlines from subtitle conversion using versioned base64 payloads. The timeline reader supports legacy JSON and warns/skips malformed packets instead of losing the entire timeline.
+
 - Automatically embed foreground process/window-title chapters, a disabled event text track with independently captured mouse clicks, and exact event/start/resume clock timestamps with UTC offsets. Preserve original titles and enable metadata automatically.
 - Rebase events and carry active-window context into split parts; check the 29 MB limit after metadata is added. Retain playable plain video and log a warning if embedding fails.
 - Supply Read-Timeline.py and FFprobe to extract all chapters, events and clocks in one command. Rebuild the private FFmpeg with FFmetadata/SRT/SubRip/movtext support and package matching complete source and checksums.

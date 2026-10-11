@@ -21,7 +21,7 @@ internal static class MetadataChecks
         var folder = Path.Combine(AppContext.BaseDirectory, "metadata-tests-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
         var plain = Path.Combine(folder, "plain.mp4"); const int frames = 12, fps = 5;
         var startTime = new DateTimeOffset(2026, 10, 11, 10, 0, 0, TimeSpan.FromHours(2));
-        const string title = "Invoice <42> & =;# customer \\ Alice 😀";
+        const string title = "C:\\New folder\\notes.txt - Notepad | Line\\nbreak | Line\\Nbreak | real\nnewline | <b> 😀";
         var timeline = new RecordingTimeline(fps); timeline.Window("mail", title, "1", startTime);
         for (int i = 0; i < frames; i++)
         {
@@ -52,7 +52,8 @@ internal static class MetadataChecks
                 Require(track.GetProperty("disposition").GetProperty("default").GetInt32() == 0, "Event track defaults to on");
                 using var data = Read(embedded); var root = data.RootElement;
                 Require(root.GetProperty("events").EnumerateArray().Count(e => e.GetProperty("kind").GetString() == "click") == frames, "Events were lost in the text track");
-                Require(root.GetProperty("chapters")[0].GetProperty("title").GetString() == "mail — " + title, "Chapter title was altered");
+                Require(root.GetProperty("events").EnumerateArray().First(e => e.GetProperty("kind").GetString() == "window").GetProperty("title").GetString() == title, "Event title was altered");
+                Require(root.GetProperty("chapters")[0].GetProperty("title").GetString() == "mail — " + title.Replace('\n', ' '), "Chapter title was altered");
                 Require(root.GetProperty("chapters").GetArrayLength() == 2, "Window chapters are missing");
                 Require(root.GetProperty("clockAnchors")[1].GetProperty("frame").GetInt32() == 6, "Resume anchor is missing");
             });
