@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Recognize editable combo dropdowns when their inner Edit child has focus by trying only its direct recorded parent and retaining the exact hwndList match. Verify a second native DropDown combo alongside DropDownList.
+
 - Retain ownerless native menu (`#32768`) and combo dropdown (`ComboLBox`) clicks when Windows associates their active menu owner or exact focused-combo list with the recorded window. Add native regression steps holding both popups open across frame ticks; unrelated windows remain excluded.
 
 - Add a guarded native fixture step that right-clicks the recorded window, selects a context-menu item and verifies both clicks survive timeline extraction while unrelated covering-window clicks remain excluded.

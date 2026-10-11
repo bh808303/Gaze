@@ -7,6 +7,7 @@ internal static class Native
 {
     [DllImport("user32.dll")] internal static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] internal static extern nint GetAncestor(nint hwnd, uint flags);
+    [DllImport("user32.dll")] internal static extern nint GetParent(nint hwnd);
     [DllImport("user32.dll")] private static extern nint GetDesktopWindow();
     [DllImport("user32.dll")] private static extern nint GetShellWindow();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(nint hwnd, StringBuilder name, int length);
@@ -106,7 +107,16 @@ internal static class Native
         if (name == "ComboLBox" && Related(gui.Focus))
         {
             var info = new ComboBoxInfo { Size = (uint)Marshal.SizeOf<ComboBoxInfo>() };
-            combo = GetComboBoxInfo(gui.Focus, ref info) && info.List == hwnd;
+            var focusedCombo = gui.Focus;
+            bool found = GetComboBoxInfo(focusedCombo, ref info);
+            if (!found)
+            {
+                // Editable combos focus their Edit child. Try only its direct parent.
+                focusedCombo = GetParent(focusedCombo);
+                info = new ComboBoxInfo { Size = (uint)Marshal.SizeOf<ComboBoxInfo>() };
+                found = focusedCombo != 0 && Related(focusedCombo) && GetComboBoxInfo(focusedCombo, ref info);
+            }
+            combo = found && info.List == hwnd;
         }
         return TimelineBoundary.IncludesPopup(name, menu, combo);
     }

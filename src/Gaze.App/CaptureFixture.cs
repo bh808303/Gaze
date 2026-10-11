@@ -25,6 +25,10 @@ internal sealed class CaptureFixture : Form
     private Point menuOpenPoint, menuItemPoint;
     private double menuShownAt;
     private readonly ComboBox testCombo = new() { Location = new Point(100, 400), Width = 240, DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly ComboBox editableCombo = new() { Location = new Point(400, 400), Width = 240, DropDownStyle = ComboBoxStyle.DropDown };
+    private bool editableOpened, editableDown, editableUp;
+    private double editableShownAt, editableDownAt;
+    private Point editablePoint;
     private bool nativeMenuStarted, nativeMenuDown, nativeMenuUp, nativeMenuActivated, comboOpened, comboDown, comboUp;
     private double nativeMenuShownAt, nativeMenuDownAt, comboShownAt, comboDownAt;
     private Point nativeMenuPoint, comboPoint;
@@ -37,6 +41,7 @@ internal sealed class CaptureFixture : Form
     [StructLayout(LayoutKind.Sequential)] private struct ComboInfo { internal uint Size; internal RectangleItems Item, Button; internal uint State; internal nint Combo, Edit, List; }
     [StructLayout(LayoutKind.Sequential)] private struct RectangleItems { internal int Left, Top, Right, Bottom; }
     [DllImport("user32.dll")] private static extern bool GetComboBoxInfo(nint combo, ref ComboInfo info);
+    [DllImport("user32.dll")] private static extern nint GetFocus();
     [StructLayout(LayoutKind.Sequential)] private struct MouseInput { internal int X, Y; internal uint Data, Flags, Time; internal nuint Extra; }
     [StructLayout(LayoutKind.Explicit, Size = 40)] private struct TestInput { [FieldOffset(0)] internal uint Type; [FieldOffset(8)] internal MouseInput Mouse; }
     [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
@@ -58,6 +63,8 @@ internal sealed class CaptureFixture : Form
         content.ContextMenuStrip = testMenu;
         testCombo.Items.AddRange(new object[] { "First synthetic option", "Second synthetic option" }); testCombo.SelectedIndex = 0;
         Controls.Add(testCombo); testCombo.BringToFront();
+        editableCombo.Items.AddRange(new object[] { "First editable option", "Second editable option" }); editableCombo.SelectedIndex = 0;
+        Controls.Add(editableCombo); editableCombo.BringToFront();
         Shown += async (_, _) =>
         {
             Native.ShowWindow(Handle, 5);
@@ -238,7 +245,22 @@ internal sealed class CaptureFixture : Form
             }
             if (comboDown && !comboUp && elapsed > comboDownAt + 0.4)
             { InjectButton(comboPoint, false, 0); comboUp = true; }
-            if (elapsed > 14 && !stopping)
+            if (comboUp && !editableOpened && elapsed > 13)
+            { editableCombo.Focus(); editableCombo.DroppedDown = true; editableOpened = true; editableShownAt = elapsed; }
+            if (editableOpened && !editableDown && elapsed > editableShownAt + 0.35)
+            {
+                var info = new ComboInfo { Size = (uint)Marshal.SizeOf<ComboInfo>() };
+                if (!GetComboBoxInfo(editableCombo.Handle, ref info) || !Native.IsWindowVisible(info.List)) throw new InvalidOperationException("Editable combo dropdown was not found.");
+                var bounds = Native.WindowBounds(info.List); editablePoint = new Point(bounds.Left + 40, bounds.Top + editableCombo.ItemHeight * 3 / 2 + 2);
+                var focus = GetFocus(); var focusedInfo = new ComboInfo { Size = (uint)Marshal.SizeOf<ComboInfo>() };
+                if (focus != info.Edit || Native.GetParent(focus) != editableCombo.Handle || GetComboBoxInfo(focus, ref focusedInfo))
+                    throw new InvalidOperationException("Editable combo regression did not exercise the focused Edit-child fallback.");
+                Log($"Editable combo popup class {Native.ClassName(info.List)}; owner recognized: {Native.OwnedBy(info.List, Handle)}; focused child class: {Native.ClassName(focus)}; direct combo lookup failed as expected.");
+                InjectButton(editablePoint, true, info.List); editableDown = true; editableDownAt = elapsed;
+            }
+            if (editableDown && !editableUp && elapsed > editableDownAt + 0.4)
+            { InjectButton(editablePoint, false, 0); editableUp = true; }
+            if (elapsed > 16 && !stopping)
             {
                 stopping = true;
                 Log("Stopping"); capture!.Stop();
@@ -290,7 +312,7 @@ internal sealed class CaptureFixture : Form
             throw new InvalidOperationException("Actual window title changes or chapters are missing.");
         if (!args.Contains("--all-monitors"))
         {
-            if (!coverInputSent || clicks.Length != 9) throw new InvalidOperationException($"Expected five rapid clicks plus four popup clicks, got {clicks.Length}; covering-window click filtering or popup retention failed.");
+            if (!coverInputSent || clicks.Length != 10) throw new InvalidOperationException($"Expected five rapid clicks plus five popup clicks, got {clicks.Length}; covering-window click filtering or popup retention failed.");
             bool HasClick(Point point, string button) => clicks.Any(e => e.GetProperty("button").GetString() == button && e.GetProperty("screenX").GetInt32() == point.X && e.GetProperty("screenY").GetInt32() == point.Y);
             if (!menuInputSent || !menuItemActivated || !HasClick(menuOpenPoint, "right") || !HasClick(menuItemPoint, "left"))
                 throw new InvalidOperationException("Context-menu opening or item click was lost.");
@@ -298,6 +320,9 @@ internal sealed class CaptureFixture : Form
             if (!nativeMenuActivated || !nativeMenuUp || !HasClick(nativeMenuPoint, "left") || !comboUp || testCombo.SelectedIndex != 1 || !HasClick(comboPoint, "left"))
                 throw new InvalidOperationException("Native menu or combo-list click/action was lost.");
             Log("PASS: native #32768 menu and ComboLBox item clicks retained while popups stayed open across frame ticks; both actions executed.");
+            if (!editableUp || editableCombo.SelectedIndex != 1 || !HasClick(editablePoint, "left"))
+                throw new InvalidOperationException("Editable combo dropdown click or selection was lost.");
+            Log("PASS: editable DropDown combo item click retained with its Edit child focused; selection executed.");
             var external = allEvents.Where(e => e.TryGetProperty("external", out var flag) && flag.GetBoolean()).ToArray();
             if (external.Length == 0 || external.Any(e => e.TryGetProperty("title", out _) || e.TryGetProperty("process", out _) || e.TryGetProperty("windowId", out _)))
                 throw new InvalidOperationException("Foreign foreground context was not anonymized.");
