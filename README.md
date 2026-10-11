@@ -46,6 +46,16 @@ python ./artifacts/app-event-timeline/Read-Timeline.py 'C:\path\recording.mp4'
 
 The portable app includes FFprobe beside the reader. From the repository, supply `--probe .tools/encoder-build/output/ffprobe.exe`. See [timeline format](docs/event-timeline.md) for the versioned event schema. Existing recordings are not retroactively changed.
 
+## Claude recording-analysis skill
+
+The optional [gaze-video-analysis skill](skills/claude/gaze-video-analysis.zip) helps Claude analyze Gaze recordings efficiently. Import the ZIP as a custom skill in Claude, enable it, then upload a Gaze MP4 and describe the result you want. The skill recognizes Gaze filenames, including upload prefixes and numbered split parts. Without additional instructions, it produces a summary, a timeline with video and clock times, a work description suitable for a ticket or time entry, and a list of uncertainties.
+
+It reads the embedded timeline first to find window changes, clicks, pauses and optional keyboard activity. It then selects changed or relevant video frames, builds contact sheets, and crops readable details when needed. This avoids reviewing thousands of nearly identical images. Split parts should be supplied in order. Older recordings without metadata can still be analyzed visually, but their clock times are approximate and cannot reliably account for pauses.
+
+The skill requires a Claude environment that can run Python with NumPy, Pillow and a full FFmpeg build capable of decoding video and extracting subtitle metadata; its preparation script can use `imageio-ffmpeg`. Gaze's minimal bundled encoder is not a substitute for that analysis dependency. The original video remains unchanged. Large recordings can still take substantial processing time, and reported token counts are estimates rather than billed usage.
+
+Analysis distinguishes visible evidence from inference: a click does not prove its effect, keyboard labels do not reconstruct exact typed text, and unreadable text or activity outside the capture boundary remains uncertain. The skill instructs Claude to redact credentials and other secrets. It has been tested repeatedly by the project owner in Claude. Analysis runs in Claude, separately from the Gaze recorder.
+
 ## Build and run
 
 Requires Windows 10 version 2004 or later, x64, and the .NET 10 SDK specified by `global.json`.
@@ -70,7 +80,7 @@ To verify the minimal bundled encoder, add `--split-encoder .tools/encoder-build
 
 Append `--metadata-tests .tools/encoder-build/output/ffmpeg.exe .tools/encoder-build/output/ffprobe.exe` for compressed-video packet equality, chapters, title escaping, disabled subtitle disposition, graceful metadata failure, and size checks after metadata pushes a video over the limit. Set `GAZE_TEST_PYTHON` if Python is not on PATH. The synthetic `--self-test --event-check --no-click-highlight --no-overlay --evidence <directory>` check captures only its own test window and verifies five rapid clicks, title changes, chapters, pause/resume anchors, timeline extraction, and clipboard saving. It moves/restores the pointer to inject test clicks into the fixture and requires Windows capture permission.
 
-Broader GPU/DPI/multiple-monitor validation, browser-spawn attribution, and Windows sign-in startup remain outside this alpha's guarantees. Application transcription or AI analysis is not part of Gaze.
+Broader GPU/DPI/multiple-monitor validation, browser-spawn attribution, and Windows sign-in startup remain outside this alpha's guarantees. The Gaze recorder does not perform AI analysis itself; the optional Claude skill above provides that workflow separately.
 
 See [CHANGELOG.md](CHANGELOG.md) and [requirements](docs/requirements.md).
 
