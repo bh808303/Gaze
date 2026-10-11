@@ -86,7 +86,6 @@ internal sealed class TrayPanel : IDisposable, IWin32Window
         Gaze.Fluent.PanelWindow.QueueOnHost(() =>
         {
             window.UpdateLayout(); window.Activate();
-            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "panel-diagnostics.json"), System.Text.Json.JsonSerializer.Serialize(new { Build = AppContext.BaseDirectory, Bounds = Native.WindowBounds(Handle), Layout = window.LayoutEvidence() }));
         });
     }
     public void Dispose() => window.DisposePanel();

@@ -42,3 +42,7 @@ Nine core checks cover recording names, target locking, paused duration, saving 
 Broader GPU/DPI/multiple-monitor validation, browser-spawn attribution, and Windows sign-in startup remain outside this alpha's guarantees. Application transcription or AI analysis is not part of Gaze.
 
 See [CHANGELOG.md](CHANGELOG.md) and [requirements](docs/requirements.md).
+
+## Local MSI installer
+
+Run ./scripts/Build-Installer.ps1 to produce a self-contained x64 MSI with a private FFmpeg copy, bundled .NET runtime, Start-menu shortcut, and uninstall registration. See installer/README.md for installation behavior, validation, and the corresponding-source gate before public redistribution. The current GitHub alpha remains a source release; the local MSI is not uploaded.
