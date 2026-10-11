@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0-alpha installer — 2026-10-11
 
 - Add off-by-default Keyboard events in timeline to the WPF settings. Record individual key-down/up events, repeats, virtual/scan codes and original timestamps only within the capture boundary; ignore paused input and retain resume-gap keys in split parts. Keep the keyboard hook queue-only.
 - Wrap large base64 event cues safely and tolerate base64 whitespace when reading, preventing SubRip long-line wrapping from dropping busy event batches.

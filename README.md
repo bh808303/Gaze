@@ -1,4 +1,4 @@
-# Gaze 0.3 alpha
+# Gaze 0.4 alpha
 
 Gaze is a Windows tray application for recording computer work so AI agents can turn visible actions, clicks, and screen changes into a written timeline, activity log, or work description. This visual “transcription” uses silent screen recordings rather than spoken audio. Capture a selected window, the main monitor, or all monitors, then paste the saved file into an AI application for analysis.
 
@@ -76,4 +76,4 @@ See [CHANGELOG.md](CHANGELOG.md) and [requirements](docs/requirements.md).
 
 ## MSI installer
 
-Download the unsigned x64 MSI from the [installer release](https://github.com/bh808303/Gaze/releases/tag/v0.3.0-alpha-installer). It includes FFmpeg and .NET, a Start-menu shortcut, and uninstall registration. The same release includes encoder corresponding source and SHA256 checksums. See [installer/README.md](installer/README.md) for build instructions, installation behavior and validation limits.
+Download the unsigned x64 MSI from the [installer release](https://github.com/bh808303/Gaze/releases/tag/v0.4.0-alpha-installer). It includes FFmpeg and .NET, a Start-menu shortcut, and uninstall registration. The same release includes encoder corresponding source and SHA256 checksums. See [installer/README.md](installer/README.md) for build instructions, installation behavior and validation limits.

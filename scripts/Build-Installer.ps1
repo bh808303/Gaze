@@ -57,7 +57,7 @@ Write-Payload $taskPayload
 $taskFragment = '<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"><Fragment><DirectoryRef Id="INSTALLFOLDER">' + $taskTree.ToString() + '</DirectoryRef><ComponentGroup Id="Payload">' + $taskRefs.ToString() + '</ComponentGroup></Fragment></Wix>'
 $taskFragmentPath = Join-Path $taskOutput 'Payload.wxs'
 $taskFragment | Set-Content -LiteralPath $taskFragmentPath -Encoding UTF8
-$taskMsi = Join-Path $taskOutput 'Gaze-0.3.0-alpha-win-x64.msi'
+$taskMsi = Join-Path $taskOutput 'Gaze-0.4.0-alpha-win-x64.msi'
 & $taskWix build (Join-Path $taskRoot 'installer/Package.wxs') $taskFragmentPath -arch x64 -d ('IconPath=' + (Join-Path $taskRoot 'assets/gaze-icon-states/gaze-silent.ico')) -o $taskMsi
 if ($LASTEXITCODE -ne 0) { throw 'MSI build failed.' }
 Get-FileHash -LiteralPath $taskMsi -Algorithm SHA256 | Format-List
