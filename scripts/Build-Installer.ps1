@@ -4,7 +4,7 @@ $taskRoot = Split-Path $PSScriptRoot -Parent
 $taskOutput = Join-Path $taskRoot 'artifacts/installer'
 $taskPayload = Join-Path $taskOutput 'payload'
 $taskWix = Join-Path $taskRoot '.tools/wix/wix.exe'
-if (-not $FfmpegPath) { $FfmpegPath = Join-Path $taskRoot '.tools/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe' }
+if (-not $FfmpegPath) { $FfmpegPath = Join-Path $taskRoot '.tools/encoder-build/output/ffmpeg.exe' }
 $FfmpegPath = (Resolve-Path -LiteralPath $FfmpegPath).Path
 if (-not (Test-Path -LiteralPath $taskWix)) {
     dotnet tool install wix --version 4.0.6 --tool-path (Split-Path $taskWix -Parent)
@@ -60,4 +60,6 @@ $taskMsi = Join-Path $taskOutput 'Gaze-0.3.0-alpha-win-x64.msi'
 & $taskWix build (Join-Path $taskRoot 'installer/Package.wxs') $taskFragmentPath -arch x64 -d ('IconPath=' + (Join-Path $taskRoot 'assets/gaze-icon-states/gaze-silent.ico')) -o $taskMsi
 if ($LASTEXITCODE -ne 0) { throw 'MSI build failed.' }
 Get-FileHash -LiteralPath $taskMsi -Algorithm SHA256 | Format-List
+$taskDigest = (Get-FileHash -LiteralPath $taskMsi -Algorithm SHA256).Hash.ToLowerInvariant()
+"$taskDigest  $([IO.Path]::GetFileName($taskMsi))" | Set-Content (Join-Path $taskOutput 'SHA256SUMS.txt') -Encoding ascii
 Write-Output $taskMsi

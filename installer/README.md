@@ -1,6 +1,6 @@
 # Windows MSI
 
-Build with `./scripts/Build-Installer.ps1`. Requires .NET 10 SDK; the script installs WiX 4.0.6 into the ignored `.tools/wix` directory when needed. Supply `-FfmpegPath` to select the encoder executable; the default is the local development FFmpeg 7.1 binary. It must support libx264. `-SkipPublish` repackages an existing self-contained payload and is intended for packaging validation only.
+Build the encoder with `./scripts/Build-Encoder.ps1`, then run `./scripts/Build-Installer.ps1`. Requires Git for Windows and .NET 10 SDK; the installer script installs WiX 4.0.6 into the ignored `.tools/wix` directory when needed. The default is Gaze's minimal FFmpeg 7.1/x264 build. Supply `-FfmpegPath` to select another executable supporting libx264, and supply its matching source and notices before redistribution. `-SkipPublish` repackages an existing self-contained payload and is intended for packaging validation only.
 
 Output: `artifacts/installer/Gaze-0.3.0-alpha-win-x64.msi`.
 
@@ -14,6 +14,6 @@ The payload is self-contained, with includedFrameworks in the runtime configurat
 
 ## Redistribution
 
-The local MSI includes upstream FFmpeg GPLv3, WPF UI MIT, and .NET notices. FFmpeg is invoked as a separate executable. The supplied encoder is a Gyan GPLv3 build with external libraries. Before uploading this MSI publicly, distribute its complete corresponding source, including the matching external library sources and build scripts. The upstream source links in NOTICE.txt alone do not satisfy that requirement. This installer has not been attached to the public alpha release.
+The MSI includes FFmpeg GPLv3, x264 GPLv2-or-later, WPF UI MIT, and .NET notices. FFmpeg is invoked as a separate executable. The installer release supplies the exact FFmpeg and x264 source archives and build scripts in `Gaze-0.3.0-alpha-encoder-source.zip`. See [ENCODER.md](ENCODER.md). Run `./scripts/Pack-EncoderSource.ps1` after building the MSI to create the source ZIP and SHA256 sums for both assets. Publish these three files together; upstream links alone are not a substitute for the corresponding source archive.
 
-Sources used for packaging: [WiX package schema](https://docs.firegiant.com/wix/schema/wxs/package/), [FFmpeg licensing](https://ffmpeg.org/legal.html), and [Gyan build provenance](https://www.gyan.dev/ffmpeg/builds/).
+Sources used for packaging: [WiX package schema](https://docs.firegiant.com/wix/schema/wxs/package/) and [FFmpeg licensing](https://ffmpeg.org/legal.html).

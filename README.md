@@ -35,7 +35,7 @@ Launch `artifacts/app/Gaze.App.exe`. The optional `Start-Gaze.ps1` launcher buil
 
 ## Alpha status and validation
 
-This release publishes source code; FFmpeg and compiled application packages are not included. WPF UI 4.3.0 provides the interface controls. The panel uses software rendering and is positioned while hidden to avoid blank windows and placement flashes. It is recreated after saving or a recording failure.
+The alpha installer release includes the application, .NET desktop runtime, and a private FFmpeg encoder. WPF UI 4.3.0 provides the interface controls. The panel uses software rendering and is positioned while hidden to avoid blank windows and placement flashes. It is recreated after saving or a recording failure.
 
 Nine core checks cover recording names, target locking, paused duration, saving state, and Esc confirmation. Local synthetic recording checks cover decoded video, dialog following, overlay exclusion, and clipboard copying. Desktop rendering checks cover panel placement and recreation. Local evidence, recordings, build outputs, and dependencies are excluded from Git.
 
@@ -43,6 +43,6 @@ Broader GPU/DPI/multiple-monitor validation, browser-spawn attribution, and Wind
 
 See [CHANGELOG.md](CHANGELOG.md) and [requirements](docs/requirements.md).
 
-## Local MSI installer
+## MSI installer
 
-Run ./scripts/Build-Installer.ps1 to produce a self-contained x64 MSI with a private FFmpeg copy, bundled .NET runtime, Start-menu shortcut, and uninstall registration. See installer/README.md for installation behavior, validation, and the corresponding-source gate before public redistribution. The current GitHub alpha remains a source release; the local MSI is not uploaded.
+Download the unsigned x64 MSI from the [installer release](https://github.com/bh808303/Gaze/releases/tag/v0.3.0-alpha-installer). It includes FFmpeg and .NET, a Start-menu shortcut, and uninstall registration. The same release includes encoder corresponding source and SHA256 checksums. See [installer/README.md](installer/README.md) for build instructions, installation behavior and validation limits.

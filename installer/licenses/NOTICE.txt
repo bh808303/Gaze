@@ -1,12 +1,17 @@
 Gaze 0.3 Alpha — third-party components
 
-FFmpeg 7.1 essentials build, Copyright (c) 2000-2024 the FFmpeg developers.
-Built by Gyan Doshi (https://www.gyan.dev/ffmpeg/builds/).
-This executable is a separate program invoked by Gaze and is licensed under
-the GNU GPL version 3 or later. See FFmpeg-GPLv3.txt and FFmpeg-build.txt.
-Upstream FFmpeg source: https://github.com/FFmpeg/FFmpeg/tree/n7.1
-Build provider and external library information: https://www.gyan.dev/ffmpeg/builds/
-The binary was obtained through imageio-ffmpeg 0.6.0.
+FFmpeg 7.1, Copyright (c) 2000-2024 the FFmpeg developers.
+x264, Copyright its respective contributors; see x264-GPLv2.txt.
+This privately bundled encoder is built from unmodified FFmpeg n7.1 and
+x264 revision 31e19f92f00c7003fa115047ce50978bc98c3a0d. The combined
+executable is licensed under GNU GPL version 3 or later. It is invoked as
+a separate process by Gaze. See FFmpeg-GPLv3.txt and FFmpeg-build.txt.
+Complete corresponding source and build scripts are freely downloadable
+alongside the installer as Gaze-0.3.0-alpha-encoder-source.zip at:
+https://github.com/bh808303/Gaze/releases/tag/v0.3.0-alpha-installer
+Upstream: https://ffmpeg.org/ and https://www.videolan.org/developers/x264.html
+No upstream sources were modified. No nonfree libraries are enabled.
+Windows system libraries and UCRT are provided by Windows.
 
 WPF UI 4.3.0, Copyright Leszek Pomianowski and WPF UI Contributors.
 Licensed under MIT; see WPF-UI-MIT.txt.
@@ -16,7 +21,4 @@ The self-contained .NET runtime is provided by Microsoft.
 See DotNet-LICENSE.txt, DotNet-WindowsDesktop-LICENSE.txt,
 and DotNet-ThirdPartyNotices.txt in this folder.
 
-This locally built installer is unsigned. Before public redistribution of
-the bundled GPL encoder, provide its complete corresponding source,
-including the exact external libraries and build scripts. Upstream links
-alone are not a substitute for corresponding-source distribution.
+This alpha installer is unsigned.

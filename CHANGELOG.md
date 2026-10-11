@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0-alpha installer — 2026-10-11
+
+- Self-contained x64 MSI with .NET runtime, private FFmpeg, Start-menu shortcut and uninstall registration.
+- Minimal FFmpeg/x264 build with matching complete source archives and build scripts supplied alongside the installer.
+- SHA256 checksums for the MSI and encoder source package.
+
+The installer is unsigned. Administrative extraction and synthetic recording are checked locally; clean-device interactive install, repair, upgrade and uninstall testing remain outstanding.
+
 ## 0.3.0-alpha — 2026-10-11
 
 - Windows tray recording for a selected window, the main monitor, or all monitors.
