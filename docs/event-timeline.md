@@ -14,6 +14,8 @@ The reader also accepts legacy plain-JSON cues. Malformed event packets produce 
 
 The low-level mouse hook only timestamps and queues clicks; it never waits for drawing or writes files. The encoder drains accepted clicks before advancing to the next sampled frame. Pause and stop drain accepted clicks before closing that interval, while clicks received during a pause are ignored. Warning callbacks enqueue messages; the encoder writes them outside the drawing lock. A contention test holds the consumer blocked while 1,000 further clicks are queued, then checks order and original timestamps. This verifies queue isolation rather than promising Windows will never remove a hook for other reasons.
 
+Clicks drained while a resume is pending are buffered in the timeline until its first resumed sample. Their frame indices then point to that sample, with original click clock times unchanged. If recording stops or pauses again before any resumed sample exists, that unsampled interval is discarded.
+
 `frame` is zero-based in the current file. `recordingFrame` is the original recording's frame index. Video seconds = frame / framesPerSecond. Video duration excludes pauses. An event is associated with the most recently sampled frame at the time its hook is processed. Multiple short clicks between two frames remain distinct events; this does not imply those clicks are visible in a low-frame-rate video.
 
 `clockTime` values are ISO 8601 wall-clock timestamps including UTC offset. Mouse/window hook times compensate for message-dispatch latency using the Windows millisecond clock. They are system-clock measurements, not independently verified time. Clock changes retain the offset and reported time.

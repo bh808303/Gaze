@@ -35,6 +35,7 @@ public sealed class RecordingTimeline
     private readonly List<DateTimeOffset> frames = [];
     private readonly List<ClockAnchor> anchors = [];
     private readonly List<TimelineEvent> events = [];
+    private readonly List<TimelineEvent> resumedClicks = [];
     private readonly Dictionary<string, TimelineEvent> windows = [];
     private DateTimeOffset? resume;
     private bool active, closed;
@@ -62,6 +63,8 @@ public sealed class RecordingTimeline
                         events.Add(window with { Frame = frame, RecordingFrame = frame, ClockTime = time });
                 }
                 resume = null;
+                events.AddRange(resumedClicks.Select(e => e with { Frame = frame, RecordingFrame = frame }));
+                resumedClicks.Clear();
             }
             active = true;
         }
@@ -81,19 +84,27 @@ public sealed class RecordingTimeline
     {
         lock (gate)
         {
-            if (active && !closed) events.Add(new(CurrentFrame, CurrentFrame, time, "click", Button: button, ScreenX: screenX, ScreenY: screenY, X: x, Y: y));
+            if (closed) return;
+            var click = new TimelineEvent(CurrentFrame, CurrentFrame, time, "click", Button: button, ScreenX: screenX, ScreenY: screenY, X: x, Y: y);
+            if (active) events.Add(click);
+            else if (resume.HasValue) resumedClicks.Add(click);
         }
     }
     public void Pause(DateTimeOffset time)
     {
         lock (gate)
         {
-            if (!active || closed) return;
+            if (closed) return;
+            if (!active)
+            {
+                // A second pause before a resumed sample cancels that unsampled interval.
+                resume = null; resumedClicks.Clear(); return;
+            }
             events.Add(new(CurrentFrame, CurrentFrame, time, "pause")); active = false;
         }
     }
     public void Resume(DateTimeOffset time) { lock (gate) { if (!closed) resume = time; } }
-    public void Stop() { lock (gate) { active = false; closed = true; } }
+    public void Stop() { lock (gate) { active = false; closed = true; resumedClicks.Clear(); } }
     public TimelineSnapshot Snapshot(int frameCount)
     {
         lock (gate)

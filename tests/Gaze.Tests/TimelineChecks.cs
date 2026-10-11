@@ -5,6 +5,22 @@ internal static class TimelineChecks
     internal static void Run(Action<string, Action> test)
     {
         var start = new DateTimeOffset(2026, 10, 11, 9, 0, 0, TimeSpan.FromHours(2));
+        test("Clicks drained before the first resumed frame survive with original clocks and the resumed frame index", () =>
+        {
+            var timeline = new RecordingTimeline(5); var queue = new Gaze.App.ClickQueue();
+            timeline.Frame(start); timeline.Pause(start.AddMilliseconds(100));
+            timeline.Click("left", 0, 0, 0, 0, start.AddSeconds(1));
+            timeline.Resume(start.AddSeconds(2));
+            for (int i = 0; i < 5; i++) queue.Enqueue("left", new System.Drawing.Point(i, i), start.AddSeconds(2).AddMilliseconds(10 + i));
+            queue.Drain((button, point, time) => timeline.Click(button, point.X, point.Y, point.X, point.Y, time));
+            timeline.Frame(start.AddSeconds(2.2));
+            var snapshot = timeline.Snapshot(2);
+            var clicks = snapshot.Events.Where(e => e.Kind == "click").ToArray();
+            Require(clicks.Length == 5, "Resume-gap clicks were dropped or paused clicks retained");
+            for (int i = 0; i < clicks.Length; i++)
+                Require(clicks[i].Frame == 1 && clicks[i].RecordingFrame == 1 && clicks[i].ClockTime == start.AddSeconds(2).AddMilliseconds(10 + i), "Click clock or resumed frame was altered");
+            Require(snapshot.Slice(0, 1).Events.All(e => e.Kind != "click") && snapshot.Slice(1, 1).Events.Count(e => e.Kind == "click") == 5, "Resume clicks crossed the split boundary");
+        });
         test("Pause and resume map to recorded frames and retain exact clock times", () =>
         {
             var timeline = new RecordingTimeline(5);
@@ -19,6 +35,16 @@ internal static class TimelineChecks
             Require(part.ClockAnchors.Last().TransitionTime == start.AddSeconds(10), "Global resume clock time was lost");
             Require(part.Events.Single(e => e.Kind == "resume").ClockTime == start.AddSeconds(10), "Resume request clock time was lost");
             Require(part.Events.Single(e => e.Kind == "click").ClockTime == start.AddMilliseconds(30), "Precise click time was lost");
+        });
+        test("An unsampled resume cancelled by pause or stop does not leak buffered clicks into a later interval", () =>
+        {
+            var timeline = new RecordingTimeline(5); timeline.Frame(start); timeline.Pause(start.AddMilliseconds(100));
+            timeline.Resume(start.AddSeconds(1)); timeline.Click("left", 1, 1, 1, 1, start.AddSeconds(1.01));
+            timeline.Pause(start.AddSeconds(1.02)); timeline.Resume(start.AddSeconds(2)); timeline.Frame(start.AddSeconds(2.2));
+            Require(timeline.Snapshot(2).Events.All(e => e.Kind != "click"), "Cancelled resume clicks leaked");
+            timeline.Pause(start.AddSeconds(3)); timeline.Resume(start.AddSeconds(4));
+            timeline.Click("left", 2, 2, 2, 2, start.AddSeconds(4.01)); timeline.Stop();
+            Require(timeline.Snapshot(2).Events.All(e => e.Kind != "click"), "Unsampled stopped clicks leaked");
         });
         test("Rapid clicks are retained independently of the video frame rate", () =>
         {
