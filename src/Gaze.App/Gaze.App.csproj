@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <Platform>x64</Platform><PlatformTarget>x64</PlatformTarget><RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>../../assets/gaze-icon-states/gaze-silent.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Gaze.Core/Gaze.Core.csproj" />
+    <ProjectReference Include="../Gaze.Panel/Gaze.Panel.csproj" />
+    <EmbeddedResource Include="../../assets/gaze-icon-states/*.ico" LogicalName="Gaze.Icons.%(Filename)%(Extension)" />
+    <None Include="../../.tools/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe"
+          Condition="Exists('../../.tools/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe')"
+          Link="ffmpeg.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

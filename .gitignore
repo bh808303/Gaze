@@ -5,3 +5,6 @@ obj/
 .env
 recordings/
 docs/factory/runs/
+.packages/
+artifacts/
+.tools/

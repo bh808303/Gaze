@@ -10,10 +10,27 @@ void Equal<T>(T expected, T actual)
 {
     if (!EqualityComparer<T>.Default.Equals(expected, actual)) throw new Exception($"Expected {expected}, got {actual}");
 }
+Test("Recording names include date, start/end, and video minutes across midnight", () =>
+{
+    var start = new DateTime(2026, 10, 10, 23, 59, 0);
+    Equal("Gaze_d101026_t2359-0001_2min.mp4", RecordingName.Create(start, start.AddMinutes(2.5), TimeSpan.FromMinutes(2.5)));
+    Equal("Gaze_d101026_t2359-0001_1min.mp4", RecordingName.Create(start, start.AddMinutes(2.5), TimeSpan.FromMinutes(1)));
+    Equal("Gaze_d101026_t2359-2359_0min.mp4", RecordingName.Create(start, start.AddSeconds(30), TimeSpan.FromSeconds(30)));
+    Equal(false, RecordingName.Create(start, start, TimeSpan.Zero).Contains(':'));
+});
 Test("Arming locks the original target", () =>
 {
     var s = new Session(); s.Arm(CaptureMode.Window, 42); s.Start();
     Equal((nint)42, s.Root); Equal(SessionState.Recording, s.State);
+});
+Test("Current monitor locks its armed target and requires a monitor", () =>
+{
+    var s = new Session(); s.Arm(CaptureMode.CurrentMonitor, 77); s.Start();
+    Equal((nint)77, s.Root); Equal(CaptureMode.CurrentMonitor, s.Mode);
+    s.Stop(); Equal(SessionState.Saving, s.State);
+    try { new Session().Arm(CaptureMode.CurrentMonitor, 0); throw new Exception("Missing monitor was accepted"); }
+    catch (ArgumentException) { }
+    Equal(1, (int)CaptureMode.AllMonitors);
 });
 Test("Pause excludes time from video duration", () =>
 {

@@ -16,10 +16,10 @@ Decision record: 2026-10-10. These requirements reflect the user discussion, not
 - Continue capturing the locked window when focus changes or unrelated applications cover it.
 - Follow dialogs, nested dialogs, and identifiable windows spawned from the selected window. Do not indiscriminately follow every window from the same executable.
 - Temporarily capture a followed window, then return to its surviving parent/original when it closes. Closing the original stops and saves.
-- Browser navigation and displayed tabs within the captured window are included. Tracking separate spawned browser windows requires prototype validation; no universal tracking guarantee yet.
+- Browser navigation and displayed tabs within the captured window are included. Tracking separate spawned browser windows requires validation; no universal tracking guarantee yet.
 - Minimize the original to pause; restore to resume. Recorded duration excludes paused time and pauses are omitted from output.
 - Small movable duration overlay, with paused state, excluded from capture.
-- Fixed video canvas during resizing and target switching; exact sizing/padding/scaling policy remains a prototype decision. Prioritize readable text and do not silently reduce resolution.
+- Fixed video canvas during resizing and target switching. Configurable: original window size (default), or the original window's monitor resolution, measured when recording starts. Smaller windows are centered with black padding; larger windows scale to fit with a scaled indicator. The canvas remains fixed even when following a window on another monitor. This option applies only to selected-window recording.
 
 ## All monitors
 
@@ -37,14 +37,14 @@ Decision record: 2026-10-10. These requirements reflect the user discussion, not
 - After finalization, automatically copy the saved file using Windows file clipboard semantics, configurable. Keep Copy path available. Recipient compatibility belongs outside Gaze.
 - Show Saving, then Saved and copied. On failure show the actual error and relevant retry. Distinguish saved-file success from clipboard failure; keep the saved recording and offer Copy again/Open folder.
 - Quitting during recording stops, saves, copies, then exits.
-- Record progressively in a recoverable working format; finalize to MP4 after stopping. Delete working files only after successful finalization. Offer interrupted recording recovery at next launch; last unfinished portion may be lost.
+- Record progressively to a working file; finalize to MP4 after stopping. Delete working files only after successful finalization. Interrupted-recording recovery is not supported; no startup recovery prompts.
 - Monitor available disk space and stop/finalize with remaining headroom, explaining the reason. Threshold requires implementation validation.
 - Exclude Gaze's overlays/confirmation from recordings, including all-monitor capture. Show completion notifications after capture ends.
 
 ## Settings
 
-Shortcut, mode, frame rate, output folder, click highlight, automatic clipboard copying, launch at sign-in, and double-Esc behavior.
+Shortcut, mode, window canvas size, frame rate, output folder, click highlight, automatic clipboard copying, launch at sign-in, and double-Esc behavior.
 
 ## Open technical decisions
 
-Canvas policy, encoding backend/codec, supported Windows versions, reliable spawned-window attribution, behavior of simultaneous followed windows and multiple nesting levels, overlay exclusion support, disk headroom, and recovery details require prototype evidence before production implementation.
+Encoding backend/codec, supported Windows versions, reliable spawned-window attribution, behavior of simultaneous followed windows and multiple nesting levels, overlay exclusion support, disk headroom, and interrupted-session behavior require test evidence before production implementation.

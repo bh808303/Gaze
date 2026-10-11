@@ -1,7 +1,8 @@
 namespace Gaze.Core;
 
 public enum SessionState { Idle, Armed, Recording, Paused, Saving }
-public enum CaptureMode { Window, AllMonitors }
+public enum CaptureMode { Window, AllMonitors, CurrentMonitor }
+public enum WindowCanvasMode { OriginalWindow, Monitor }
 
 public sealed class Session
 {
@@ -12,7 +13,7 @@ public sealed class Session
     public void Arm(CaptureMode mode, nint root)
     {
         Require(SessionState.Idle);
-        if (mode == CaptureMode.Window && root == 0) throw new ArgumentException("Select a window first.");
+        if (mode != CaptureMode.AllMonitors && root == 0) throw new ArgumentException("Select a window first.");
         Mode = mode; Root = root; Duration = TimeSpan.Zero; State = SessionState.Armed;
     }
     public void Start() { Require(SessionState.Armed); State = SessionState.Recording; }
