@@ -29,11 +29,12 @@ cd "$root/sources/ffmpeg"
   --cross-prefix=x86_64-w64-mingw32- --pkg-config="$root/x264-pkg-config" \
   --prefix="$root/install" --enable-gpl --enable-version3 --enable-libx264 \
   --disable-autodetect --disable-everything --disable-doc --disable-debug \
-  --disable-ffplay --disable-ffprobe --enable-ffmpeg \
-  --enable-protocol=file,pipe --enable-demuxer=rawvideo --enable-decoder=rawvideo \
-  --enable-encoder=libx264 --enable-muxer=mp4 \
-  --enable-filter=scale,format,null,anull
+  --disable-ffplay --enable-ffprobe --enable-ffmpeg \
+  --enable-protocol=file,pipe --enable-demuxer=rawvideo,mov,ffmetadata,srt --enable-decoder=rawvideo,h264,subrip,movtext \
+  --enable-encoder=libx264,movtext --enable-muxer=mp4 \
+  --enable-filter=scale,format,null,anull,trim,setpts
 make -j4 REVISION=7.1
 cp ffmpeg.exe "$root/output/ffmpeg.exe"
+cp ffprobe.exe "$root/output/ffprobe.exe"
 cp config.h ffbuild/config.mak "$root/output/"
 "$root/output/ffmpeg.exe" -version > "$root/output/FFmpeg-build.txt"

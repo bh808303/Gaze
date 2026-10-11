@@ -8,8 +8,10 @@ internal sealed class Settings
     public CaptureMode Mode { get; set; }
     public WindowCanvasMode WindowCanvas { get; set; } = WindowCanvasMode.OriginalWindow;
     public int FrameRate { get; set; } = 5;
+    public CompressionMode Compression { get; set; } = CompressionMode.Original;
     public bool ClickHighlight { get; set; } = true;
     public bool AutoCopy { get; set; } = true;
+    public bool SplitAt29Mb { get; set; }
     public bool DoubleEscape { get; set; } = true;
     public uint Modifiers { get; set; } = 3;
     public Keys Key { get; set; } = Keys.PrintScreen;
@@ -19,7 +21,7 @@ internal sealed class Settings
     {
         if (!File.Exists(PathName)) return new();
         var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(PathName)) ?? new();
-        if (settings.FrameRate is < 1 or > 30 || string.IsNullOrWhiteSpace(settings.Folder) || !Enum.IsDefined(settings.Mode) || !Enum.IsDefined(settings.WindowCanvas))
+        if (settings.FrameRate is < 1 or > 30 || string.IsNullOrWhiteSpace(settings.Folder) || !Enum.IsDefined(settings.Mode) || !Enum.IsDefined(settings.WindowCanvas) || !Enum.IsDefined(settings.Compression))
             throw new InvalidDataException($"Invalid settings in {PathName}.");
         return settings;
     }
@@ -97,6 +99,9 @@ internal sealed class SettingsForm : Form
         canvas.SelectedIndex = (int)settings.WindowCanvas;
         mode.SelectedIndexChanged += (_, _) => canvas.Enabled = mode.SelectedIndex == (int)CaptureMode.Window;
         var fps = new NumericUpDown { Minimum = 1, Maximum = 30, Value = settings.FrameRate };
+        var compression = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
+        compression.Items.AddRange(["Original — sharper image", "Compact — smaller file"]);
+        compression.SelectedIndex = (int)settings.Compression;
         var folder = new TextBox { Text = settings.Folder, Dock = DockStyle.Fill };
         var key = new TextBox { Text = settings.Shortcut, ReadOnly = true, Dock = DockStyle.Fill };
         uint modifiers = settings.Modifiers; Keys shortcut = settings.Key;
@@ -108,11 +113,14 @@ internal sealed class SettingsForm : Form
             key.Text = new Settings { Modifiers = modifiers, Key = shortcut }.Shortcut;
         };
         var clicks = new CheckBox { Text = "Highlight mouse clicks", Checked = settings.ClickHighlight, AutoSize = true };
-        var copy = new CheckBox { Text = "Copy saved file to clipboard", Checked = settings.AutoCopy, AutoSize = true };
+        var copy = new CheckBox { Text = "Copy saved files to clipboard", Checked = settings.AutoCopy, AutoSize = true };
+        var split = new CheckBox { Text = "Split recordings over 29 MB", Checked = settings.SplitAt29Mb, AutoSize = true };
         var escape = new CheckBox { Text = "Double-Esc stops within 1 second", Checked = settings.DoubleEscape, AutoSize = true };
         Section("Capture", "Record a window, your main monitor, or all monitors.");
         Row("Capture mode", mode); Row("Window canvas", canvas);
         Row("Frames per second", fps);
+        Row("Compression", compression);
+        Wide(new Label { Text = "Compact keeps resolution and frame rate, but may soften small text and uses more CPU. Seeking can take longer. File size varies; uploads under 30 MB are not guaranteed.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
         Wide(new Label { Text = "5 fps is recommended for readable text and smaller files. Video only; no audio.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
         Row("Mouse clicks", clicks);
         Section("Controls", "Click the tray icon or use your shortcut to arm, record, and save.");
@@ -130,7 +138,9 @@ internal sealed class SettingsForm : Form
             if (picker.ShowDialog(this) == DialogResult.OK) folder.Text = picker.SelectedPath;
         };
         folderRow.Controls.Add(folder, 0, 0); folderRow.Controls.Add(browse, 1, 0);
-        Row("Save folder", folderRow); Row("After saving", copy);
+        Row("Save folder", folderRow); Row("File size", split);
+        Wide(new Label { Text = "Save larger recordings as numbered MP4 parts of at most 29 MB each. Splitting takes extra time and re-encodes the video at the selected compression. Auto-copy copies all parts.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
+        Row("After saving", copy);
         var save = new Button { Text = "Save settings", AutoSize = true, Padding = new Padding(12, 4, 12, 4), BackColor = Color.FromArgb(0, 103, 184), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
         save.FlatAppearance.BorderSize = 0;
         var cancel = new Button { Text = "Cancel", AutoSize = true, Padding = new Padding(12, 4, 12, 4), DialogResult = DialogResult.Cancel };
@@ -142,8 +152,9 @@ internal sealed class SettingsForm : Form
             {
                 if (modifiers == 0 || shortcut is Keys.Escape or Keys.F12) throw new InvalidOperationException("Use a modified shortcut other than Esc or F12.");
                 var proposed = new Settings { Mode = (CaptureMode)mode.SelectedIndex, WindowCanvas = (WindowCanvasMode)canvas.SelectedIndex, FrameRate = (int)fps.Value,
+                    Compression = (CompressionMode)compression.SelectedIndex,
                     Folder = Path.GetFullPath(folder.Text), Modifiers = modifiers, Key = shortcut,
-                    ClickHighlight = clicks.Checked, AutoCopy = copy.Checked, DoubleEscape = escape.Checked };
+                    ClickHighlight = clicks.Checked, AutoCopy = copy.Checked, SplitAt29Mb = split.Checked, DoubleEscape = escape.Checked };
                 apply(proposed); Close();
             }
             catch (Exception e) { MessageBox.Show(e.Message, "Could not save settings"); }

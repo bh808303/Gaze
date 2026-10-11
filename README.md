@@ -1,11 +1,14 @@
 # Gaze 0.3 alpha
 
-Gaze is a Windows tray application for recording readable screen sessions. Capture a selected window, the main monitor, or all monitors, then paste the saved file into another application.
+Gaze is a Windows tray application for recording computer work so AI agents can turn visible actions, clicks, and screen changes into a written timeline, activity log, or work description. This visual “transcription” uses silent screen recordings rather than spoken audio. Capture a selected window, the main monitor, or all monitors, then paste the saved file into an AI application for analysis.
+
+The recording format is designed to keep files as small as practical while preserving the screen text and actions an AI agent needs to understand the work. Gaze saves H.264 video in MP4, using a low default frame rate and selectable compression. Compact mode adds stronger compression and less frequent full keyframes to reduce repeated storage of unchanged screen content. The aim is efficient sharing and AI analysis; the useful compression level depends on text size and screen activity, so smaller files must still be checked for readability and missed brief actions.
 
 ## Controls
 
 - Left-click the tray icon: arm → start recording → stop and save.
 - Right-click: open the recording panel and Settings.
+- The panel always aligns with the bottom-right corner of the working area on the monitor containing the pointer when opened, keeping clear of the taskbar. Its size is limited to that working area.
 - Default shortcut: Ctrl + Alt + PrintScreen; configurable in Settings.
 - Press Esc twice within one second to stop. The first press remains available to the application being recorded.
 
@@ -13,13 +16,33 @@ The tray icon is green when ready, orange when armed or saving, and red when rec
 
 ## Recording
 
-Video only, with no audio. The default is 5 frames per second, preserving native text resolution. Selected-window capture follows owned dialogs, returns to the original when they close, and stops when the original closes. Window canvas options are Windows size and Monitor size. Main monitor captures the Windows primary display; All monitors captures the desktop across displays.
+Video only, with no audio. The default is 5 frames per second, preserving native text resolution. Selected-window capture follows owned dialogs, returns to the original when they close, and stops when the original closes. Window canvas options are Windows size and Monitor size. Main monitor captures the Windows primary display; All monitors captures the desktop across displays. Highlight mouse clicks applies to all three capture modes, drawing a gold ring for 400 ms when a left-button press is detected at a captured frame; very short clicks between frames can be missed.
+
+Settings → Compression offers Original (H.264, CRF 18, veryfast, maximum 2-second keyframe interval; existing default) and Compact (H.264, CRF 24, medium, maximum 10-second keyframe interval). Compact preserves resolution and frame rate, uses more CPU, and may soften small text. The choice is saved and applies to the next recording. File size depends on content and duration; neither mode guarantees a file under 30 MB. Older settings retain Original. Compact avoids repeatedly encoding full static screens; scene changes may still create earlier keyframes. Seeking can require decoding up to 10 seconds from the preceding keyframe. MP4 fragments are also written less frequently; interrupted-recording recovery remains unsupported.
 
 Saved names use `Gaze_d101026_t2105-2107_2min.mp4`: local date and start/end times, with whole recorded minutes rounded down. Pauses are excluded from duration. A numbered suffix prevents overwriting files.
+
+Settings → Saving → Split recordings over 29 MB is off by default. When enabled, recordings larger than 29,000,000 bytes are re-encoded after stopping into ordered `-part1.mp4`, `-part2.mp4` files. Each finished part is checked against the limit and subdivided if needed; resolution, frame rate, and frame order are preserved. Parts use the selected compression, which can add compression loss. Saving takes longer and temporarily needs space for the original and parts. The original is removed only after every part is saved successfully; on failure it is retained and an error is shown. Files already at or below the limit stay untouched. A frame too large to fit by itself causes a safe failure. Auto-copy places all resulting parts on the clipboard; individual parts remain available in the recording panel.
 
 Automatic clipboard copying places a file reference on the clipboard. Open, Open Folder, Copy Clipboard, and Clean-up are available in the panel. Clean-up asks for confirmation and moves MP4 files directly in the recording folder to the Recycle Bin; subfolders and unfinished working files are retained.
 
 Interrupted-recording recovery is not supported. Normal startup is silent. The idle panel can be captured by screenshot tools; it is excluded while armed, recording, or saving on supported Windows versions.
+
+The tray panel's split toggle appears directly below Save folder. Its value is loaded and saved through the same persistent settings as recording and is retained when changing other panel settings.
+
+## Embedded activity timeline
+
+Every new recording automatically includes process/window-title chapters (captured windows in window mode; foreground windows in monitor modes), an event text track, and a `gaze_timeline` clock-mapping tag. Titles are stored as reported by Windows, including foreground windows outside the selected app. Mouse button presses are captured independently of the video frame rate and Highlight clicks setting. Click events inside the captured area include screen coordinates and coordinates in the encoded video. Paused input is excluded. Events carry their actual clock time with UTC offset and the most recently sampled video frame; frame positions are not claims that the action is visible in that exact image. Start/resume anchors identify the actual sampled frame and its clock time; resume anchors also retain the transition request time. Each split part has its own frame positions and exact first-frame clock time, with the active window carried over.
+
+The final metadata rewrite copies the encoded video without re-encoding. The event track is disabled by default; players can still enable subtitles according to their own preferences. Chapters and text can be extracted without reading images. Splitting still re-encodes video, attaches only each part's timeline, and checks its size after metadata is added. Metadata failure leaves the playable plain video and writes `Gaze-warnings.log` in the recording folder. Event-hook failures also log a warning. Saving uses temporary files and extra disk space; no fixed completion time or text-token count is guaranteed.
+
+Read all events, chapters, and clocks with one command (requires Python 3):
+
+```powershell
+python ./artifacts/app-event-timeline/Read-Timeline.py 'C:\path\recording.mp4'
+```
+
+The portable app includes FFprobe beside the reader. From the repository, supply `--probe .tools/encoder-build/output/ffprobe.exe`. See [timeline format](docs/event-timeline.md) for the versioned event schema. Existing recordings are not retroactively changed.
 
 ## Build and run
 
@@ -29,7 +52,9 @@ Requires Windows 10 version 2004 or later, x64, and the .NET 10 SDK specified by
 ./scripts/Build.ps1 -Release
 ```
 
-Place `ffmpeg.exe` beside `artifacts/app/Gaze.App.exe`, or set `GAZE_FFMPEG` to its executable path. Gaze requires an FFmpeg build with the libx264 encoder. The development build also copies a local encoder from `.tools` when available; this directory is excluded from Git.
+Place `ffmpeg.exe` beside `artifacts/app/Gaze.App.exe`, or set `GAZE_FFMPEG` to its executable path. Gaze requires an FFmpeg build with the libx264 encoder. Splitting also requires the MOV/MP4 demuxer, H.264 decoder, and trim/setpts filters; rebuild the bundled encoder using the updated build script when packaging this feature. The development build also copies a local encoder from `.tools` when available; this directory is excluded from Git.
+
+Event metadata additionally requires FFmetadata and SRT demuxers, the SubRip decoder, and the mov_text encoder (`movtext` in FFmpeg configure component names). The rebuilt bundle includes FFprobe and the mov_text decoder for timeline inspection. `scripts/Pack-EncoderSource.ps1 -OutputDirectory <portable-app-directory>` packages the matching complete encoder source and writes SHA256 checksums beside a portable build; omission keeps the installer output directory.
 
 Launch `artifacts/app/Gaze.App.exe`. The optional `Start-Gaze.ps1` launcher builds when the expected application or adjacent encoder is missing. Only one tray instance runs at a time.
 
@@ -37,7 +62,11 @@ Launch `artifacts/app/Gaze.App.exe`. The optional `Start-Gaze.ps1` launcher buil
 
 The alpha installer release includes the application, .NET desktop runtime, and a private FFmpeg encoder. WPF UI 4.3.0 provides the interface controls. The panel uses software rendering and is positioned while hidden to avoid blank windows and placement flashes. It is recreated after saving or a recording failure.
 
-Nine core checks cover recording names, target locking, paused duration, saving state, and Esc confirmation. Local synthetic recording checks cover decoded video, dialog following, overlay exclusion, and clipboard copying. Desktop rendering checks cover panel placement and recreation. Local evidence, recordings, build outputs, and dependencies are excluded from Git.
+Core and split checks cover recording names, target locking, paused duration, saving state, Esc confirmation, size boundaries, frame ordering, collision handling, and original retention after failure. Run the real video split check with `dotnet run --project tests/Gaze.Tests -- --encoder <full-ffmpeg-path>`; it encodes a recording over 29 MB, splits it, and decodes every part to verify the total frame count and size limit. Local synthetic recording checks cover decoded video, dialog following, overlay exclusion, and clipboard copying. Desktop rendering checks cover panel placement and recreation. Local evidence, recordings, build outputs, and dependencies are excluded from Git.
+
+To verify the minimal bundled encoder, add `--split-encoder .tools/encoder-build/output/ffmpeg.exe` to the video check. A full FFmpeg build is still used to generate the test source and decode the results. Video checks cover 1 and 5 fps with Original compression, and 30 fps with Compact compression.
+
+Append `--metadata-tests .tools/encoder-build/output/ffmpeg.exe .tools/encoder-build/output/ffprobe.exe` for compressed-video packet equality, chapters, title escaping, disabled subtitle disposition, graceful metadata failure, and size checks after metadata pushes a video over the limit. Set `GAZE_TEST_PYTHON` if Python is not on PATH. The synthetic `--self-test --event-check --no-click-highlight --no-overlay --evidence <directory>` check captures only its own test window and verifies five rapid clicks, title changes, chapters, pause/resume anchors, timeline extraction, and clipboard saving. It moves/restores the pointer to inject test clicks into the fixture and requires Windows capture permission.
 
 Broader GPU/DPI/multiple-monitor validation, browser-spawn attribution, and Windows sign-in startup remain outside this alpha's guarantees. Application transcription or AI analysis is not part of Gaze.
 

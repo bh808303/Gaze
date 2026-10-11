@@ -75,6 +75,7 @@ public partial class PanelWindow : FluentWindow
     public void Home()
     {
         editing = false; Heading.Text = "Gaze"; GearIcon.Symbol = SymbolRegular.Settings24;
+        FooterRow.Height = new GridLength(100);
         HomePage.Visibility = HomeFooter.Visibility = Visibility.Visible; SettingsPage.Visibility = SettingsFooter.Visibility = Visibility.Collapsed;
         updating = true; Mode.SelectedIndex = (int)getOptions().Mode; updating = false; RefreshRecordings();
     }
@@ -82,17 +83,54 @@ public partial class PanelWindow : FluentWindow
     {
         if (!idle) return;
         editing = true; Heading.Text = "Settings"; GearIcon.Symbol = SymbolRegular.ArrowLeft24;
+        FooterRow.Height = new GridLength(44);
         HomePage.Visibility = HomeFooter.Visibility = Visibility.Collapsed; SettingsPage.Visibility = SettingsFooter.Visibility = Visibility.Visible;
         var options = getOptions(); Folder.Text = options.Folder; Shortcut.Text = options.ShortcutText; modifiers = options.Modifiers; key = options.Key;
         AutoCopy.IsChecked = false; Clicks.IsChecked = false; DoubleEscape.IsChecked = false;
         AutoCopy.IsChecked = options.AutoCopy; Clicks.IsChecked = options.ClickHighlight; DoubleEscape.IsChecked = options.DoubleEscape;
         Fps.Value = options.FrameRate; Canvas.SelectedIndex = (int)options.Canvas; Canvas.IsEnabled = options.Mode == CaptureMode.Window;
+        Compression.SelectedIndex = (int)options.Compression;
+        SplitAt29Mb.IsChecked = false; SplitAt29Mb.IsChecked = options.SplitAt29Mb;
     }
     public void RunPreview(string path)
     {
         var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
-        timer.Tick += (_, _) => { timer.Stop(); Render(path); File.WriteAllText(path + ".state.json", System.Text.Json.JsonSerializer.Serialize(new { AutoCopy = AutoCopy.IsChecked, ClickHighlight = Clicks.IsChecked, DoubleEscape = DoubleEscape.IsChecked, Expected = getOptions() })); disposing = true; System.Windows.Application.Current.Shutdown(); };
+        timer.Tick += (_, _) => { timer.Stop(); Render(path); File.WriteAllText(path + ".state.json", System.Text.Json.JsonSerializer.Serialize(new { AutoCopy = AutoCopy.IsChecked, SplitAt29Mb = SplitAt29Mb.IsChecked, ClickHighlight = Clicks.IsChecked, DoubleEscape = DoubleEscape.IsChecked, Expected = getOptions() })); disposing = true; System.Windows.Application.Current.Shutdown(); };
         timer.Start(); System.Windows.Application.Current.Run(this);
+    }
+    public void CheckCompression()
+    {
+        foreach (var mode in new[] { CompressionMode.Compact, CompressionMode.Original, CompressionMode.Compact })
+        {
+            EditSettings(); Compression.SelectedIndex = (int)mode;
+            SaveClick(this, new RoutedEventArgs());
+            if (getOptions().Compression != mode) throw new InvalidOperationException("Panel compression save failed.");
+            EditSettings();
+            if (Compression.SelectedIndex != (int)mode) throw new InvalidOperationException("Panel compression reload failed.");
+        }
+        Compression.SelectedIndex = (int)CompressionMode.Original;
+        CancelSettingsClick(this, new RoutedEventArgs()); EditSettings();
+        if (getOptions().Compression != CompressionMode.Compact || Compression.SelectedIndex != (int)CompressionMode.Compact)
+            throw new InvalidOperationException("Cancel changed compression.");
+    }
+    public void CheckSplitting()
+    {
+        EditSettings();
+        var toggle = FindName("SplitAt29Mb") as Wpf.Ui.Controls.ToggleSwitch
+            ?? throw new InvalidOperationException("Split recordings over 29 MB toggle is missing from the actual settings panel.");
+        var property = typeof(PanelOptions).GetProperty("SplitAt29Mb")
+            ?? throw new InvalidOperationException("Split setting is missing from panel options.");
+        foreach (var enabled in new[] { true, false, true })
+        {
+            EditSettings(); toggle.IsChecked = enabled;
+            SaveClick(this, new RoutedEventArgs());
+            if ((bool)property.GetValue(getOptions())! != enabled) throw new InvalidOperationException("Panel split setting save failed.");
+            EditSettings();
+            if (toggle.IsChecked != enabled) throw new InvalidOperationException("Panel split setting reload failed.");
+        }
+        toggle.IsChecked = false; CancelSettingsClick(this, new RoutedEventArgs()); EditSettings();
+        if ((bool)property.GetValue(getOptions())! != true || toggle.IsChecked != true)
+            throw new InvalidOperationException("Cancel changed the split setting.");
     }
     public void Render(string path)
     {
@@ -140,6 +178,9 @@ public partial class PanelWindow : FluentWindow
             if (fps < 1 || fps > 30 || double.IsNaN(fps) || fps != Math.Truncate(fps)) throw new InvalidOperationException("Frames per second must be a whole number from 1 to 30.");
             var options = getOptions(); options.Folder = Path.GetFullPath(Folder.Text); options.Modifiers = modifiers; options.Key = key; options.FrameRate = (int)fps;
             options.AutoCopy = AutoCopy.IsChecked == true; options.ClickHighlight = Clicks.IsChecked == true; options.DoubleEscape = DoubleEscape.IsChecked == true; options.Canvas = (WindowCanvasMode)Canvas.SelectedIndex;
+            if (Compression.SelectedIndex < 0) throw new InvalidOperationException("Choose a compression mode.");
+            options.Compression = (CompressionMode)Compression.SelectedIndex;
+            options.SplitAt29Mb = SplitAt29Mb.IsChecked == true;
             apply(options); Home();
         }
         catch (Exception error) { System.Windows.MessageBox.Show(this, error.Message, "Could not save settings"); }

@@ -3,7 +3,11 @@
 Gaze's MSI includes a private FFmpeg 7.1 executable with a statically linked
 x264 encoder. It is built from unmodified upstream sources, with GPL version
 3 or later applying to the combined encoder. Gaze launches it as a separate
-process. It accepts raw BGRA frames and writes H.264 MP4; other codecs and
+process. It accepts raw BGRA frames and writes H.264 MP4. Recording splitting
+also decodes H.264 from MP4 and uses trim/setpts filters. Event metadata adds
+FFmetadata/SRT input and mov_text subtitles; the bundle also includes FFprobe
+for extracting the timeline. Rebuild with the updated scripts before packaging
+these features. Other codecs and
 network protocols are intentionally disabled.
 
 The installer release provides `Gaze-0.3.0-alpha-encoder-source.zip` alongside

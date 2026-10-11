@@ -68,4 +68,173 @@ Test("Reset clears an earlier Esc confirmation", () =>
     var e = new EscapeConfirmation(); e.Press(TimeSpan.Zero); e.Reset();
     Equal(false, e.Press(TimeSpan.FromMilliseconds(500)));
 });
+Test("Splitting preserves all frames in order and checks each part's size", () =>
+{
+    var folder = Path.Combine(AppContext.BaseDirectory, "Gaze-split-test-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(folder);
+    try
+    {
+        var source = Path.Combine(folder, "recording.mp4"); File.WriteAllBytes(source, new byte[101]);
+        var parts = Gaze.App.RecordingSplitter.SplitAsync(source, 11, 30, (start, count, path) =>
+        {
+            var data = new byte[count * 10];
+            for (int i = 0; i < count; i++) data[i * 10] = (byte)(start + i);
+            File.WriteAllBytes(path, data);
+            return Task.CompletedTask;
+        }).GetAwaiter().GetResult();
+        Equal(false, File.Exists(source)); Equal(true, parts.Count > 1);
+        // Each published filename contains its chronological part number.
+        Equal("recording-part1.mp4", Path.GetFileName(parts[0]));
+        Equal(11, parts.Sum(p => (int)new FileInfo(p).Length / 10));
+        Equal(true, parts.All(p => new FileInfo(p).Length <= 30));
+        Equal(string.Join(",", Enumerable.Range(0, 11)), string.Join(",", parts.SelectMany(p => File.ReadAllBytes(p).Where((_, i) => i % 10 == 0))));
+    }
+    finally { Directory.Delete(folder, true); }
+});
+Test("Recordings at the limit stay untouched", () =>
+{
+    var source = Path.GetTempFileName(); File.WriteAllBytes(source, new byte[30]);
+    try
+    {
+        var parts = Gaze.App.RecordingSplitter.SplitAsync(source, 10, 30, (_, _, _) => throw new Exception("Unexpected encoding")).GetAwaiter().GetResult();
+        Equal(source, parts.Single()); Equal(30L, new FileInfo(source).Length);
+    }
+    finally { File.Delete(source); }
+});
+Test("A split failure retains the original and publishes no incomplete parts", () =>
+{
+    var folder = Path.Combine(AppContext.BaseDirectory, "Gaze-split-test-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(folder); var source = Path.Combine(folder, "recording.mp4"); File.WriteAllBytes(source, new byte[101]);
+    try
+    {
+        try
+        {
+            Gaze.App.RecordingSplitter.SplitAsync(source, 11, 30, (first, _, output) =>
+            {
+                if (first > 0) throw new InvalidOperationException("Encoder failed after an accepted part");
+                File.WriteAllBytes(output, new byte[20]); return Task.CompletedTask;
+            }).GetAwaiter().GetResult();
+            throw new Exception("Failure was ignored");
+        }
+        catch (InvalidOperationException) { }
+        Equal(101L, new FileInfo(source).Length); Equal(1, Directory.GetFiles(folder).Length);
+    }
+    finally { Directory.Delete(folder, true); }
+});
+Test("Oversized single frames retain the original instead of silently exceeding the limit", () =>
+{
+    var folder = Path.Combine(AppContext.BaseDirectory, "Gaze-split-test-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(folder); var source = Path.Combine(folder, "recording.mp4"); File.WriteAllBytes(source, new byte[101]);
+    try
+    {
+        try
+        {
+            Gaze.App.RecordingSplitter.SplitAsync(source, 1, 30, (_, _, output) => { File.WriteAllBytes(output, new byte[40]); return Task.CompletedTask; }).GetAwaiter().GetResult();
+            throw new Exception("Oversized frame was accepted");
+        }
+        catch (InvalidOperationException) { }
+        Equal(101L, new FileInfo(source).Length); Equal(1, Directory.GetFiles(folder).Length);
+    }
+    finally { Directory.Delete(folder, true); }
+});
+Test("Part names never overwrite an existing recording", () =>
+{
+    var folder = Path.Combine(AppContext.BaseDirectory, "Gaze-split-test-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(folder); var source = Path.Combine(folder, "recording.mp4"); File.WriteAllBytes(source, new byte[101]);
+    var existing = Path.Combine(folder, "recording-part1.mp4"); File.WriteAllText(existing, "Existing recording");
+    try
+    {
+        var parts = Gaze.App.RecordingSplitter.SplitAsync(source, 2, 30, (_, _, output) => { File.WriteAllBytes(output, new byte[20]); return Task.CompletedTask; }).GetAwaiter().GetResult();
+        Equal("recording-2-part1.mp4", Path.GetFileName(parts[0])); Equal("Existing recording", File.ReadAllText(existing));
+    }
+    finally { Directory.Delete(folder, true); }
+});
+Test("Oversized parts are subdivided without losing or repeating frames", () =>
+{
+    var folder = Path.Combine(AppContext.BaseDirectory, "Gaze-split-test-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(folder); var source = Path.Combine(folder, "recording.mp4"); File.WriteAllBytes(source, new byte[31]);
+    try
+    {
+        var parts = Gaze.App.RecordingSplitter.SplitAsync(source, 11, 30, (first, count, output) =>
+        {
+            var bytes = new byte[count == 1 ? 20 : 40]; bytes[0] = (byte)first;
+            File.WriteAllBytes(output, bytes); return Task.CompletedTask;
+        }).GetAwaiter().GetResult();
+        Equal(11, parts.Count);
+        Equal(string.Join(",", Enumerable.Range(0, 11)), string.Join(",", parts.Select(p => File.ReadAllBytes(p)[0])));
+        Equal(true, parts.All(p => new FileInfo(p).Length <= 30));
+    }
+    finally { Directory.Delete(folder, true); }
+});
+TimelineChecks.Run(Test);
+if (args.Length >= 2 && args[0] == "--encoder")
+{
+    foreach (var (fps, compression) in new[] { (1, CompressionMode.Original), (5, CompressionMode.Original), (30, CompressionMode.Compact) })
+    Test($"Real MP4 splitting keeps every frame and each output at or below 29 MB ({fps} fps, {compression})", () =>
+    {
+        var folder = Path.Combine(AppContext.BaseDirectory, "Gaze-split-integration-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            const int frames = 100, width = 800, height = 600;
+            long DecodeBytes(string path)
+            {
+                var decode = new System.Diagnostics.ProcessStartInfo(args[1]) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+                foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-i", path, "-an", "-pix_fmt", "bgra", "-fps_mode", "passthrough", "-f", "rawvideo", "pipe:1" }) decode.ArgumentList.Add(arg);
+                using var process = System.Diagnostics.Process.Start(decode)!;
+                var errors = process.StandardError.ReadToEndAsync(); var buffer = new byte[65536]; int read;
+                long bytes = 0;
+                while ((read = process.StandardOutput.BaseStream.Read(buffer)) != 0) bytes += read;
+                process.WaitForExit();
+                if (process.ExitCode != 0) throw new Exception(errors.GetAwaiter().GetResult());
+                return bytes;
+            }
+            var source = Path.Combine(folder, "recording.mp4");
+            var start = new System.Diagnostics.ProcessStartInfo(args[1]) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardError = true };
+            foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pixel_format", "bgra", "-video_size", $"{width}x{height}", "-framerate", fps.ToString(), "-i", "pipe:0", "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "12", "-pix_fmt", "yuv420p", "-g", "10", "-movflags", "+frag_keyframe+empty_moov+default_base_moof", "-f", "mp4", source }) start.ArgumentList.Add(arg);
+            using (var process = System.Diagnostics.Process.Start(start)!)
+            {
+                var errors = process.StandardError.ReadToEndAsync();
+                var random = new Random(29); var pixels = new byte[width * height * 4];
+                for (int i = 0; i < frames; i++) { random.NextBytes(pixels); process.StandardInput.BaseStream.Write(pixels); }
+                process.StandardInput.Close(); process.WaitForExit();
+                if (process.ExitCode != 0) throw new Exception(errors.GetAwaiter().GetResult());
+            }
+            Equal(true, new FileInfo(source).Length > Gaze.App.RecordingSplitter.LimitBytes);
+            var originalBytes = DecodeBytes(source);
+            Console.WriteLine($"  Original decodes to {originalBytes / (width * height * 4)} frames.");
+            Equal((long)frames * width * height * 4, originalBytes);
+            var eventTimeline = new RecordingTimeline(fps);
+            var eventStart = new DateTimeOffset(2026, 10, 11, 12, 0, 0, TimeSpan.FromHours(2));
+            eventTimeline.Window("fixture", "Large recording", "1", eventStart);
+            for (int i = 0; i < frames; i++) { eventTimeline.Frame(eventStart.AddSeconds(i / (double)fps)); eventTimeline.Click("left", i, i, i, i, eventStart.AddSeconds(i / (double)fps).AddMilliseconds(1)); }
+            var snapshot = eventTimeline.Snapshot(frames);
+            var parts = Gaze.App.RecordingSplitter.SplitAsync(source, frames, Gaze.App.RecordingSplitter.LimitBytes, async (first, count, output) =>
+            {
+                int splitIndex = Array.IndexOf(args, "--split-encoder");
+                var splitEncoder = splitIndex >= 0 ? args[splitIndex + 1] : args[1];
+                await Gaze.App.RecordingSplitter.EncodeAsync(source, output, first, count, splitEncoder, fps, compression);
+                if (!await Gaze.App.RecordingMetadata.TryEmbedAsync(output, snapshot.Slice(first, count), splitEncoder, message => throw new Exception(message)))
+                    throw new Exception("Part metadata missing");
+                Console.WriteLine($"  Range {first}+{count} decodes to {DecodeBytes(output) / (width * height * 4)} frames.");
+            }).GetAwaiter().GetResult();
+            Equal(true, parts.Count > 1); Equal(false, File.Exists(source));
+            Equal(true, parts.All(p => new FileInfo(p).Length <= 29_000_000));
+            long totalBytes = 0;
+            foreach (var part in parts)
+            {
+                long partBytes = DecodeBytes(part);
+                Equal(0L, partBytes % (width * height * 4)); Equal(true, partBytes > 0); totalBytes += partBytes;
+            }
+            Equal((long)frames * width * height * 4, totalBytes);
+            Console.WriteLine($"  Verified {parts.Count} playable parts, {frames} frames, largest part {parts.Max(p => new FileInfo(p).Length)} bytes.");
+        }
+        finally { Directory.Delete(folder, true); }
+    });
+}
+if (args.Contains("--metadata-tests"))
+{
+    int index = Array.IndexOf(args, "--metadata-tests");
+    MetadataChecks.RunChecks(Test, args[index + 1], args[index + 2]);
+}
 Environment.ExitCode = failures == 0 ? 0 : 1;

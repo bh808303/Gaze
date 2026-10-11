@@ -16,6 +16,7 @@ if (-not $SkipPublish) {
     if ($LASTEXITCODE -ne 0) { throw 'Application publishing failed.' }
 }
 Copy-Item -LiteralPath $FfmpegPath -Destination (Join-Path $taskPayload 'ffmpeg.exe') -Force
+Copy-Item -LiteralPath (Join-Path (Split-Path $FfmpegPath -Parent) 'ffprobe.exe') -Destination (Join-Path $taskPayload 'ffprobe.exe') -Force
 Copy-Item -LiteralPath (Join-Path $taskRoot 'installer/licenses') -Destination $taskPayload -Recurse -Force
 $taskConfig = Get-Content (Join-Path $taskPayload 'Gaze.App.runtimeconfig.json') -Raw | ConvertFrom-Json
 $taskRuntimeVersion = ($taskConfig.runtimeOptions.includedFrameworks | Where-Object name -eq 'Microsoft.NETCore.App').version

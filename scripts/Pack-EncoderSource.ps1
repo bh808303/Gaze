@@ -1,3 +1,4 @@
+param([string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path $PSScriptRoot -Parent
 $taskWork = Join-Path $taskRoot '.tools/encoder-build'
@@ -14,12 +15,14 @@ Copy-Item (Join-Path $PSScriptRoot 'Build-Encoder.ps1'), (Join-Path $PSScriptRoo
 Copy-Item (Join-Path $taskRoot 'installer/ENCODER.md') (Join-Path $taskStage 'README.md') -Force
 Copy-Item (Join-Path $taskWork 'sources/ffmpeg/COPYING.GPLv3') (Join-Path $taskStage 'FFmpeg-GPLv3.txt') -Force
 Copy-Item (Join-Path $taskWork 'sources/x264/COPYING') (Join-Path $taskStage 'x264-GPLv2.txt') -Force
-$taskZip = Join-Path $taskRoot 'artifacts/installer/Gaze-0.3.0-alpha-encoder-source.zip'
+$taskOutput = if ($OutputDirectory) { [IO.Path]::GetFullPath($OutputDirectory) } else { Join-Path $taskRoot 'artifacts/installer' }
+New-Item -ItemType Directory -Path $taskOutput -Force | Out-Null
+$taskZip = Join-Path $taskOutput 'Gaze-0.3.0-alpha-encoder-source.zip'
 Compress-Archive -Path (Join-Path $taskStage '*') -DestinationPath $taskZip -Force
-$taskFiles = @('Gaze-0.3.0-alpha-win-x64.msi', 'Gaze-0.3.0-alpha-encoder-source.zip')
+$taskFiles = @('Gaze-0.3.0-alpha-encoder-source.zip', 'Gaze-0.3.0-alpha-win-x64.msi', 'Gaze.App.exe', 'Gaze.App.dll', 'Gaze.Core.dll', 'Gaze.Panel.dll', 'ffmpeg.exe', 'ffprobe.exe') | Where-Object { Test-Path -LiteralPath (Join-Path $taskOutput $_) }
 $taskLines = foreach ($name in $taskFiles) {
-    $hash = (Get-FileHash (Join-Path $taskRoot "artifacts/installer/$name") -Algorithm SHA256).Hash.ToLowerInvariant()
+    $hash = (Get-FileHash (Join-Path $taskOutput $name) -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $name"
 }
-$taskLines | Set-Content (Join-Path $taskRoot 'artifacts/installer/SHA256SUMS.txt') -Encoding ascii
+$taskLines | Set-Content (Join-Path $taskOutput 'SHA256SUMS.txt') -Encoding ascii
 Write-Output $taskZip

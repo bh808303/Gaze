@@ -105,7 +105,7 @@ internal sealed class TrayContext : ApplicationContext
                 { starting = false; session.Start(); lastTick = clock.Elapsed; escape.Reset(); Menu(); }
             });
             starting = true;
-            capture.Start(session.Mode, session.Root, settings.FrameRate, settings.ClickHighlight, settings.Folder, windowCanvas: settings.WindowCanvas);
+            capture.Start(session.Mode, session.Root, settings.FrameRate, settings.ClickHighlight, settings.Folder, windowCanvas: settings.WindowCanvas, compression: settings.Compression, splitAt29Mb: settings.SplitAt29Mb);
         }
         else Stop();
         Menu();
@@ -117,15 +117,17 @@ internal sealed class TrayContext : ApplicationContext
         session.Stop(); escape.Reset(); overlay.Hide(); noticeUntil = TimeSpan.Zero;
         capture?.Stop(); Notify("Saving…", "Finalizing the recording."); Menu();
     }
-    private void Saved(string path)
+    private void Saved(IReadOnlyList<string> paths)
     {
+        var path = paths[0];
+        var description = paths.Count == 1 ? Path.GetFileName(path) : $"{paths.Count} recording parts saved (at most 29 MB each).";
         lastFile = path; capture?.Dispose(); capture = null; session.Reset(); overlay.Hide(); ResetPanel(); Menu();
         if (settings.AutoCopy)
         {
-            try { Capture.CopyFile(path); Notify("Saved and copied to clipboard", Path.GetFileName(path)); }
+            try { Capture.CopyFiles(paths); Notify("Saved and copied to clipboard", description); }
             catch (Exception e) { Notify("Saved; clipboard copy failed", $"{e.Message} Right-click Gaze → Copy again."); }
         }
-        else Notify("Recording saved", Path.GetFileName(path));
+        else Notify("Recording saved", description);
         if (quitAfterSave) ExitThread();
     }
     private void Failed(string error)

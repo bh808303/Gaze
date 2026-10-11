@@ -3,6 +3,7 @@ namespace Gaze.Core;
 public enum SessionState { Idle, Armed, Recording, Paused, Saving }
 public enum CaptureMode { Window, AllMonitors, CurrentMonitor }
 public enum WindowCanvasMode { OriginalWindow, Monitor }
+public enum CompressionMode { Original, Compact }
 
 public sealed class Session
 {

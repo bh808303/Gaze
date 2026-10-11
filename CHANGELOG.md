@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+- Automatically embed foreground process/window-title chapters, a disabled event text track with independently captured mouse clicks, and exact event/start/resume clock timestamps with UTC offsets. Preserve original titles and enable metadata automatically.
+- Rebase events and carry active-window context into split parts; check the 29 MB limit after metadata is added. Retain playable plain video and log a warning if embedding fails.
+- Supply Read-Timeline.py and FFprobe to extract all chapters, events and clocks in one command. Rebuild the private FFmpeg with FFmetadata/SRT/SubRip/movtext support and package matching complete source and checksums.
+
+Local event-timeline build, 2026-10-11: matching encoder source is `artifacts/app-event-timeline/Gaze-0.3.0-alpha-encoder-source.zip`; the portable build contains SHA256SUMS.txt. No public release or installed MSI was replaced.
+
+| Artifact | SHA256 |
+| --- | --- |
+| ffmpeg.exe | `6a07a5bd49bb406815ba5e72ae48ecf9b170d4acf0ab475b817aed285ad68f52` |
+| ffprobe.exe | `a7bd6e8a80b180c19279a6e77bbb7874045f862a3f11c7d677269fbc32314fee` |
+| Encoder source ZIP | `1b6782df1d2bb343d959add8272c6d2de11196750b8981fb07cbb924ed30dbd1` |
+
+- Show the 29 MB split toggle in the main tray settings panel and preserve it when saving panel settings.
+
+- Optional Settings → Saving split for recordings over 29 MB: verified numbered MP4 parts, all-part automatic clipboard copying, and original retention if splitting fails. Splitting re-encodes the video and requires the updated bundled encoder.
+
+- Extend Highlight mouse clicks to Main monitor and All monitors recordings, including displays positioned left of or above the primary display.
+
+- Choose Original or Compact compression in Capture settings. Compact preserves resolution and frame rate with smaller files, at the cost of detail and encoder CPU time; no fixed upload size is guaranteed. Compact uses a maximum 10-second keyframe interval to reduce repeated full images on static screens; seeking can take longer.
+
 ## 0.3.0-alpha installer — 2026-10-11
 
 - Self-contained x64 MSI with .NET runtime, private FFmpeg, Start-menu shortcut and uninstall registration.

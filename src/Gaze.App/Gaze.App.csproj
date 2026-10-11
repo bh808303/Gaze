@@ -7,6 +7,8 @@
     <ApplicationIcon>../../assets/gaze-icon-states/gaze-silent.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="../../scripts/Read-Timeline.py" Link="Read-Timeline.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../.tools/encoder-build/output/ffprobe.exe" Condition="Exists('../../.tools/encoder-build/output/ffprobe.exe')" Link="ffprobe.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <ProjectReference Include="../Gaze.Core/Gaze.Core.csproj" />
     <ProjectReference Include="../Gaze.Panel/Gaze.Panel.csproj" />
     <EmbeddedResource Include="../../assets/gaze-icon-states/*.ico" LogicalName="Gaze.Icons.%(Filename)%(Extension)" />

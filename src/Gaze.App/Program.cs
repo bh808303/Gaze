@@ -77,6 +77,12 @@ internal static class Program
             if (args.Contains("--preview-folder")) value.Folder = args[Array.IndexOf(args, "--preview-folder") + 1];
             using var preview = new TrayPanel(() => value, proposed => value = proposed, () => { }, () => { }, _ => { }, () => { }, _ => { }, () => { }, () => { });
             preview.RefreshState(Gaze.Core.SessionState.Idle, TimeSpan.Zero, false, false);
+            if (args.Contains("--check-compression")) preview.CheckCompression();
+            if (args.Contains("--check-splitting"))
+            {
+                try { preview.CheckSplitting(); }
+                catch (Exception e) { File.WriteAllText(previewPath + ".error.txt", e.ToString()); Environment.ExitCode = 1; return; }
+            }
             if (args.Contains("--preview-settings")) preview.EditSettings();
             preview.RunPreview(previewPath); return;
         }

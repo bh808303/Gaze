@@ -1,0 +1,44 @@
+# Gaze event timeline v1
+
+New MP4 files have three complementary representations:
+
+- Chapters named `process — title` at captured-window/title changes in selected-window mode, or foreground window/title changes in monitor modes.
+- A disabled-by-default `mov_text` track with handler name `Gaze events`. Each timed cue is UTF-8 JSON: `{"version":1,"events":[...]}`. Events sharing a video frame share a cue. Empty MP4 subtitle-clear packets have no events.
+- A global `gaze_timeline` tag containing version, frame rate, frame count, original recording start, the part's original first frame, exact part start time, and clock anchors. The tag's events array is empty; events live in the timed track.
+
+`Read-Timeline.py` returns these as one JSON object, replacing the empty events array with all timed-track events and adding chapters in seconds. It uses one FFprobe subprocess, not image extraction. Run `python Read-Timeline.py recording.mp4`; pass `--probe <ffprobe-path>` if FFprobe is not beside the script or on PATH. Missing metadata produces an error and exit code 1.
+
+## Positions and clocks
+
+`frame` is zero-based in the current file. `recordingFrame` is the original recording's frame index. Video seconds = frame / framesPerSecond. Video duration excludes pauses. An event is associated with the most recently sampled frame at the time its hook is processed. Multiple short clicks between two frames remain distinct events; this does not imply those clicks are visible in a low-frame-rate video.
+
+`clockTime` values are ISO 8601 wall-clock timestamps including UTC offset. Mouse/window hook times compensate for message-dispatch latency using the Windows millisecond clock. They are system-clock measurements, not independently verified time. Clock changes retain the offset and reported time.
+
+`clockAnchors` have frame, recordingFrame, clockTime, reason (`start`, `resume`, `part-start`) and, for recording transitions, `transitionTime`. For resume, clockTime is the actual first resumed sample; transitionTime is the request time. Each part has a frame-zero anchor and partStartTime from its actual first captured sample. Arbitrary intermediate frame clock times should not be assumed exact from nominal FPS if encoding ran slower than real time; event timestamps and the recorded anchors are explicit measurements.
+
+## Events
+
+All events have frame, recordingFrame, clockTime, kind, and carryOver. Optional fields are omitted when absent.
+
+| Kind | Additional fields | Meaning |
+| --- | --- | --- |
+| start | None | First sampled frame |
+| window | process, title, windowId, scope | Window/title change with scope `foreground` or `captured`; original title retained |
+| click | button, screenX, screenY, x, y | Button press inside captured area; desktop screen pixels plus encoded-video pixels |
+| pause | None | Capture pause request |
+| resume | None | Resume request, associated with first resumed frame |
+| part-start | None | Timing marker for a part with no other events |
+
+Buttons: left, right, middle, x1, x2. Encoded x/y account for window centering/scaling or monitor desktop origin; screen coordinates may be negative. Window IDs are hexadecimal HWNDs, useful only within the recording, not stable application IDs. A carried-over window event starts at local frame zero but retains its original recordingFrame and clockTime; it is context, not another switch.
+
+Each part gets events within its own frame range, rebased to zero, and the preceding context for each scope when needed. Captured-window context follows owned dialogs even if a different app has foreground focus; foreground context remains separately available in the text track. Chapters use the current file's frame time base. Events occurring while paused are not added. A resume emits a window event only if that scope's window/title changed. Chapters may merge several title changes that occur within one sampled frame; the text track retains those individual events.
+
+## Failure and size behavior
+
+Metadata is added to a new temporary MP4 using video stream-copy. FFmpeg 7.1 enables its first subtitle track regardless of requested disposition; Gaze clears only the Gaze-events track's MP4 `tkhd` enabled bit after muxing. Packet hashes are tested unchanged. Other player subtitle preferences may still enable the track.
+
+The original plain video is replaced only after the remux and track flag update succeed. Failure retains it and appends a warning to Gaze-warnings.log. An event cue exceeding the timed-text packet budget causes the same safe fallback instead of silently truncating JSON. Temporary metadata/SRT files are removed. Interrupted-process recovery remains unsupported.
+
+When splitting is enabled, each completed part is checked against 29,000,000 bytes after adding its metadata. A small original that grows over the cap is split too. Splitting re-encodes from the original and then stream-copies metadata onto the part. The original is removed only after all size-checked parts are published.
+
+Source references: [FFmpeg stream-copy and metadata mapping](https://ffmpeg.org/ffmpeg.html), [FFmetadata and MOV/MP4 metadata](https://ffmpeg.org/ffmpeg-formats.html), and the bundled FFmpeg 7.1 source `libavformat/movenc.c:enable_tracks` / `libavformat/mov.c:mov_read_tkhd` for subtitle defaults.

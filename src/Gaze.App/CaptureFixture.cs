@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Runtime.InteropServices;
 using Gaze.Core;
 
 namespace Gaze.App;
@@ -17,6 +18,11 @@ internal sealed class CaptureFixture : Form
     private readonly List<string> events = [];
     private bool opened, closed, paused, resumed, stopping;
     private bool checkedDialogScale;
+    private bool eventInputSent;
+    [StructLayout(LayoutKind.Sequential)] private struct MouseInput { internal int X, Y; internal uint Data, Flags, Time; internal nuint Extra; }
+    [StructLayout(LayoutKind.Explicit, Size = 40)] private struct TestInput { [FieldOffset(0)] internal uint Type; [FieldOffset(8)] internal MouseInput Mouse; }
+    [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll", SetLastError = true)] private static extern uint SendInput(uint count, TestInput[] inputs, int size);
     private double recordingStart;
     private nint current;
     internal CaptureFixture(string[] args)
@@ -54,11 +60,16 @@ internal sealed class CaptureFixture : Form
             if (status == RecorderStatus.Recording && !timer.Enabled) { recordingStart = clock.Elapsed.TotalSeconds; timer.Start(); }
         });
         capture.Failed += error => BeginInvoke(() => Finish(false, error));
-        capture.Completed += path => BeginInvoke(() =>
+        capture.Completed += paths => BeginInvoke(() =>
         {
-            Gaze.App.Capture.CopyFile(path);
-            bool copied = Clipboard.GetFileDropList().Contains(path);
-            Finish(copied, $"Output: {path}; clipboard: {copied}");
+            if (args.Contains("--event-check"))
+            {
+                try { CheckEventMetadata(paths); }
+                catch (Exception e) { Finish(false, e.ToString()); return; }
+            }
+            Gaze.App.Capture.CopyFiles(paths);
+            bool copied = paths.All(path => Clipboard.GetFileDropList().Contains(path));
+            Finish(copied, $"Output: {string.Join(", ", paths)}; clipboard: {copied}");
         });
         try
         {
@@ -75,10 +86,13 @@ internal sealed class CaptureFixture : Form
             if (rejectedShellWindows == 0) throw new InvalidOperationException("No shell surfaces found to verify taskbar rejection.");
             Log($"Target validation passed; {rejectedShellWindows} shell surfaces rejected.");
             var canvasMode = args.Contains("--monitor-canvas") ? WindowCanvasMode.Monitor : WindowCanvasMode.OriginalWindow;
-            var persisted = JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(new Settings { WindowCanvas = canvasMode }))!;
+            var compression = args.Contains("--compact") ? CompressionMode.Compact : CompressionMode.Original;
+            var persisted = JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(new Settings { WindowCanvas = canvasMode, Compression = compression }))!;
+            if (persisted.Compression != compression || JsonSerializer.Deserialize<Settings>("{}")!.Compression != CompressionMode.Original)
+                throw new InvalidOperationException("Compression settings did not round-trip or preserve the default.");
             if (persisted.WindowCanvas != canvasMode || JsonSerializer.Deserialize<Settings>("{}")!.WindowCanvas != WindowCanvasMode.OriginalWindow)
                 throw new InvalidOperationException("Canvas settings did not round-trip or preserve the default.");
-            capture.Start(args.Contains("--all-monitors") ? CaptureMode.AllMonitors : CaptureMode.Window, Handle, 5, true, evidence, true, persisted.WindowCanvas);
+            capture.Start(args.Contains("--all-monitors") ? CaptureMode.AllMonitors : CaptureMode.Window, Handle, 5, !args.Contains("--no-click-highlight"), evidence, true, persisted.WindowCanvas, persisted.Compression, persisted.SplitAt29Mb);
             var expected = canvasMode == WindowCanvasMode.Monitor ? Screen.FromHandle(Handle).Bounds.Size : Size;
             if (Math.Abs(capture.Canvas.Width - expected.Width) > 24 || Math.Abs(capture.Canvas.Height - expected.Height) > 24)
                 throw new InvalidOperationException("Canvas does not match the selected policy.");
@@ -91,6 +105,19 @@ internal sealed class CaptureFixture : Form
         try
         {
             double elapsed = clock.Elapsed.TotalSeconds - recordingStart;
+            if (args.Contains("--event-check") && elapsed > 1 && !eventInputSent)
+            {
+                eventInputSent = true; Text = "Gaze synthetic fixture — Invoice 4242";
+                Native.GetCursorPos(out var original);
+                var point = PointToScreen(new Point(80, 100));
+                Native.GetWindowThreadProcessId(Native.WindowFromPoint(point), out var clickProcess);
+                if (clickProcess != (uint)Environment.ProcessId) throw new InvalidOperationException("Fixture click point is covered; no test clicks were injected.");
+                SetCursorPos(point.X, point.Y);
+                var inputs = Enumerable.Range(0, 10).Select(i => new TestInput { Type = 0, Mouse = new MouseInput { Flags = i % 2 == 0 ? 2u : 4u } }).ToArray();
+                try { if (SendInput(10, inputs, Marshal.SizeOf<TestInput>()) != 10) throw new InvalidOperationException("Could not inject the synthetic click test."); }
+                finally { SetCursorPos(original.X, original.Y); }
+                Log("Five rapid synthetic clicks sent between frames; fixture title changed.");
+            }
             if (elapsed > 2 && cover == null)
             {
                 cover = new Form { Text = "Unrelated covering window", StartPosition = FormStartPosition.Manual, Location = Location, Size = Size, BackColor = Color.Magenta };
@@ -127,6 +154,31 @@ internal sealed class CaptureFixture : Form
             }
         }
         catch (Exception e) { Finish(false, e.ToString()); }
+    }
+    private void CheckEventMetadata(IReadOnlyList<string> paths)
+    {
+        var allEvents = new List<JsonElement>(); var anchors = new List<JsonElement>(); int chapterCount = 0;
+        foreach (var path in paths)
+        {
+            var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("GAZE_TEST_PYTHON") ?? "python") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+            foreach (var argument in new[] { Path.Combine(AppContext.BaseDirectory, "Read-Timeline.py"), path, "--probe", Path.Combine(AppContext.BaseDirectory, "ffprobe.exe") }) start.ArgumentList.Add(argument);
+            using var process = Process.Start(start)!; var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit(30_000)) { process.Kill(); throw new InvalidOperationException("Timeline reader timed out."); }
+            if (process.ExitCode != 0) throw new InvalidOperationException(error.GetAwaiter().GetResult());
+            string json = output.GetAwaiter().GetResult(); File.WriteAllText(Path.Combine(evidence, Path.GetFileNameWithoutExtension(path) + ".timeline.json"), json);
+            using var data = JsonDocument.Parse(json);
+            allEvents.AddRange(data.RootElement.GetProperty("events").EnumerateArray().Select(e => e.Clone()));
+            anchors.AddRange(data.RootElement.GetProperty("clockAnchors").EnumerateArray().Select(e => e.Clone()));
+            chapterCount += data.RootElement.GetProperty("chapters").GetArrayLength();
+        }
+        var clicks = allEvents.Where(e => e.GetProperty("kind").GetString() == "click").ToArray();
+        if (clicks.Length < 5 || clicks.GroupBy(e => e.GetProperty("frame").GetInt32()).Max(g => g.Count()) < 4)
+            throw new InvalidOperationException("Rapid clicks between video frames were not preserved.");
+        if (!allEvents.Any(e => e.GetProperty("kind").GetString() == "window" && e.GetProperty("title").GetString()!.Contains("Invoice 4242")) || chapterCount < 2)
+            throw new InvalidOperationException("Actual window title changes or chapters are missing.");
+        if (!anchors.Any(a => a.GetProperty("reason").GetString() == "resume") || !allEvents.Any(e => e.GetProperty("kind").GetString() == "pause"))
+            throw new InvalidOperationException("Pause/resume clock mapping is missing.");
+        Log($"PASS: {clicks.Length} independent clicks, {chapterCount} chapters, resume clock anchor; event track extracted from actual recording.");
     }
     private void Finish(bool success, string detail)
     {
