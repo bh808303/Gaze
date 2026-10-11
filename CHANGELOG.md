@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a guarded native fixture step that right-clicks the recorded window, selects a context-menu item and verifies both clicks survive timeline extraction while unrelated covering-window clicks remain excluded.
+
 - Ignore location-change notifications in window capture and child-control moves in monitor capture. Cache foreground monitor-boundary state so ordinary moves do not reread process/title details. Window-mode queued clicks also reject unrelated covering windows when processed.
 
 - Restrict timeline titles to the recorded window/owned dialogs or windows overlapping captured monitors. Replace foreign foreground context with neutral external events without identity fields; preserve this boundary through pause and split carry-over. Exclude clicks in uncaptured desktop gaps.

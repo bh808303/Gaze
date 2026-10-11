@@ -20,6 +20,10 @@ internal sealed class CaptureFixture : Form
     private bool checkedDialogScale;
     private bool eventInputSent;
     private bool coverInputSent;
+    private readonly ContextMenuStrip testMenu = new();
+    private bool menuOpened, menuInputSent, menuItemActivated;
+    private Point menuOpenPoint, menuItemPoint;
+    private double menuShownAt;
     [StructLayout(LayoutKind.Sequential)] private struct MouseInput { internal int X, Y; internal uint Data, Flags, Time; internal nuint Extra; }
     [StructLayout(LayoutKind.Explicit, Size = 40)] private struct TestInput { [FieldOffset(0)] internal uint Type; [FieldOffset(8)] internal MouseInput Mouse; }
     [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
@@ -37,6 +41,8 @@ internal sealed class CaptureFixture : Form
         BackColor = Color.FromArgb(240, 245, 250);
         var content = new Label { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 16), ForeColor = Color.FromArgb(20, 45, 70), Text = "GAZE WINDOW CAPTURE TEST\n\nReadable text: abcdefghijklmnopqrstuvwxyz 0123456789\n\nInvoice 12345 · Status: Pending\n\nThis text must remain visible while covered by another window.\n\nDialog capture must return here after closing.\n\nNative resolution · 5 FPS · no audio", Padding = new Padding(24) };
         Controls.Add(content);
+        testMenu.Items.Add("Synthetic menu action", null, (_, _) => menuItemActivated = true);
+        content.ContextMenuStrip = testMenu;
         Shown += async (_, _) =>
         {
             Native.ShowWindow(Handle, 5);
@@ -146,6 +152,24 @@ internal sealed class CaptureFixture : Form
                 coverInputSent = true; Log("Synthetic click sent to unrelated covering window; it must not enter the timeline.");
             }
             if (elapsed > 7 && !closed) { closed = true; dialog?.Close(); cover?.Close(); Log("Dialog and covering window closed"); }
+            if (args.Contains("--event-check") && !args.Contains("--all-monitors") && elapsed > 7.2 && !menuOpened)
+            {
+                TopMost = true; BringToFront(); Activate();
+                menuOpenPoint = PointToScreen(new Point(350, 200));
+                InjectClick(menuOpenPoint, true, Handle);
+                menuOpened = true; menuShownAt = elapsed;
+                Log("Right-click sent to recorded fixture to open its context menu.");
+            }
+            if (menuOpened && !menuInputSent && elapsed > menuShownAt + 0.35)
+            {
+                if (!testMenu.Visible) throw new InvalidOperationException("Right-click did not open the fixture context menu.");
+                var item = testMenu.Items[0].Bounds;
+                menuItemPoint = testMenu.PointToScreen(new Point(item.Left + item.Width / 2, item.Top + item.Height / 2));
+                Log($"Context menu HWND {testMenu.Handle}; owner recognized: {Native.OwnedBy(testMenu.Handle, Handle)}");
+                InjectClick(menuItemPoint, false, testMenu.Handle);
+                menuInputSent = true;
+                Log("Left-click sent to the synthetic context-menu item.");
+            }
             if (elapsed > 6 && !checkedDialogScale && args.Contains("--large-dialog"))
             {
                 checkedDialogScale = true;
@@ -170,6 +194,15 @@ internal sealed class CaptureFixture : Form
         }
         catch (Exception e) { Finish(false, e.ToString()); }
     }
+    private void InjectClick(Point point, bool right, nint expectedWindow)
+    {
+        if (Native.GetAncestor(Native.WindowFromPoint(point), 2) != expectedWindow)
+            throw new InvalidOperationException("Synthetic click target is covered; no click injected.");
+        Native.GetCursorPos(out var original); SetCursorPos(point.X, point.Y);
+        var inputs = new[] { new TestInput { Type = 0, Mouse = new MouseInput { Flags = right ? 8u : 2u } }, new TestInput { Type = 0, Mouse = new MouseInput { Flags = right ? 16u : 4u } } };
+        try { if (SendInput(2, inputs, Marshal.SizeOf<TestInput>()) != 2) throw new InvalidOperationException("Could not inject synthetic menu click."); }
+        finally { SetCursorPos(original.X, original.Y); }
+    }
     private void CheckEventMetadata(IReadOnlyList<string> paths)
     {
         var allEvents = new List<JsonElement>(); var anchors = new List<JsonElement>(); int chapterCount = 0;
@@ -193,7 +226,11 @@ internal sealed class CaptureFixture : Form
             throw new InvalidOperationException("Actual window title changes or chapters are missing.");
         if (!args.Contains("--all-monitors"))
         {
-            if (!coverInputSent || clicks.Length != 5) throw new InvalidOperationException("Covering-window click was retained or test was not exercised.");
+            if (!coverInputSent || clicks.Length != 7) throw new InvalidOperationException($"Expected five rapid clicks plus two menu clicks, got {clicks.Length}; covering-window click filtering or menu retention failed.");
+            bool HasClick(Point point, string button) => clicks.Any(e => e.GetProperty("button").GetString() == button && e.GetProperty("screenX").GetInt32() == point.X && e.GetProperty("screenY").GetInt32() == point.Y);
+            if (!menuInputSent || !menuItemActivated || !HasClick(menuOpenPoint, "right") || !HasClick(menuItemPoint, "left"))
+                throw new InvalidOperationException("Context-menu opening or item click was lost.");
+            Log("PASS: recorded-app context-menu opening and item clicks retained; menu action executed.");
             var external = allEvents.Where(e => e.TryGetProperty("external", out var flag) && flag.GetBoolean()).ToArray();
             if (external.Length == 0 || external.Any(e => e.TryGetProperty("title", out _) || e.TryGetProperty("process", out _) || e.TryGetProperty("windowId", out _)))
                 throw new InvalidOperationException("Foreign foreground context was not anonymized.");
@@ -209,14 +246,14 @@ internal sealed class CaptureFixture : Form
     }
     private void Finish(bool success, string detail)
     {
-        timer.Stop(); overlay.Close(); dialog?.Close(); cover?.Close();
+        timer.Stop(); testMenu.Close(); overlay.Close(); dialog?.Close(); cover?.Close();
         Log(detail);
         File.WriteAllText(Path.Combine(evidence, "result.json"), JsonSerializer.Serialize(new { success, detail, canvas = capture?.Canvas, events }, new JsonSerializerOptions { WriteIndented = true }));
         capture?.Dispose(); Environment.ExitCode = success ? 0 : 1; Close();
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { timer.Dispose(); overlay.Dispose(); capture?.Dispose(); }
+        if (disposing) { timer.Dispose(); testMenu.Dispose(); overlay.Dispose(); capture?.Dispose(); }
         base.Dispose(disposing);
     }
 }
