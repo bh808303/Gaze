@@ -15,6 +15,7 @@ internal sealed class Capture : IDisposable
     private readonly System.Collections.Concurrent.ConcurrentQueue<string> pendingWarnings = new();
     private GraphicsSource? window;
     private nint target;
+    private nint recordingRoot;
     private readonly List<(string Device, Rectangle Bounds, GraphicsSource Source)> monitors = [];
     private CancellationTokenSource? cancel;
     private Task? worker;
@@ -60,6 +61,7 @@ internal sealed class Capture : IDisposable
         if (!Enum.IsDefined(compression)) throw new ArgumentOutOfRangeException(nameof(compression));
         this.compression = compression;
         this.splitAt29Mb = splitAt29Mb;
+        recordingRoot = root;
         _ = EncoderPath(); this.mode = mode; this.fps = fps; this.folder = folder; this.diagnostics = diagnostics; this.clicks = clicks;
         Directory.CreateDirectory(folder);
         timeline = new RecordingTimeline(fps);
@@ -242,6 +244,12 @@ internal sealed class Capture : IDisposable
             if (mode != CaptureMode.Window && !TimelineBoundary.IncludesPoint(point, captureAreas)) return;
             var destination = mode == CaptureMode.Window ? clickDestination : new Rectangle(Point.Empty, desktopBounds.Size);
             if (source.Width <= 0 || source.Height <= 0 || !source.Contains(point)) return;
+            if (mode == CaptureMode.Window)
+            {
+                // Hit-test on the consumer, never inside the low-level mouse hook.
+                var hit = Native.GetAncestor(Native.WindowFromPoint(point), 2);
+                if (hit == 0 || (hit != target && !Native.OwnedBy(hit, recordingRoot))) return;
+            }
             int x = destination.X + (int)((point.X - source.X) * (long)destination.Width / source.Width);
             int y = destination.Y + (int)((point.Y - source.Y) * (long)destination.Height / source.Height);
             timeline?.Click(button, point.X, point.Y, x, y, time);

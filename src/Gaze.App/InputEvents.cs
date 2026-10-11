@@ -17,6 +17,7 @@ internal sealed class InputEvents : IDisposable
     private nint mouseHook, foregroundHook, titleHook;
     private bool warned;
     private readonly Action<nint, DateTimeOffset, string> describeWindow;
+    private readonly MonitorBoundaryCache boundaryCache = new();
     internal InputEvents(Action<string, Point, DateTimeOffset> click, Action<string?, string?, string?, DateTimeOffset, string, bool> window, Action<string> warning, Func<nint> capturedWindow, CaptureMode mode, nint recordingRoot, IReadOnlyList<Rectangle> areas)
     {
         void Guard(Action action)
@@ -24,17 +25,18 @@ internal sealed class InputEvents : IDisposable
             try { action(); }
             catch (Exception e) { if (!warned) { warned = true; warning($"Some input events could not be recorded: {e.Message}"); } }
         }
-        void Window(nint hwnd, DateTimeOffset time, string scope)
+        void Window(nint hwnd, DateTimeOffset time, string scope, bool? boundary = null)
         {
             if (hwnd == 0 || !Native.IsWindow(hwnd)) return;
             hwnd = Native.GetAncestor(hwnd, 2); // GA_ROOT normalizes child notifications.
-            bool related = hwnd == capturedWindow() || Native.OwnedBy(hwnd, recordingRoot);
+            bool related = mode == CaptureMode.Window && (hwnd == capturedWindow() || Native.OwnedBy(hwnd, recordingRoot));
             // Check the boundary before reading any title or process name.
-            bool included = TimelineBoundary.IncludesWindow(mode, related,
+            bool included = boundary ?? TimelineBoundary.IncludesWindow(mode, related,
                 mode == CaptureMode.Window ? Rectangle.Empty : Native.Bounds(hwnd), areas);
             if (!included)
             {
                 if (scope == "foreground") window(null, null, null, time, scope, true);
+                if (scope == "foreground" && mode != CaptureMode.Window) boundaryCache.Remember(hwnd, false);
                 return;
             }
             Native.GetWindowThreadProcessId(hwnd, out var pid);
@@ -42,8 +44,9 @@ internal sealed class InputEvents : IDisposable
             try { using var process = Process.GetProcessById((int)pid); name = process.ProcessName; }
             catch (ArgumentException) { } catch (System.ComponentModel.Win32Exception) { } catch (InvalidOperationException) { }
             window(name, Native.Title(hwnd), $"0x{hwnd:X}", time, scope, false);
+            if (scope == "foreground" && mode != CaptureMode.Window) boundaryCache.Remember(hwnd, true);
         }
-        describeWindow = Window;
+        describeWindow = (hwnd, time, scope) => Window(hwnd, time, scope);
         mouseCallback = (code, message, data) =>
         {
             if (code >= 0 && message is 0x201 or 0x204 or 0x207 or 0x20B)
@@ -57,6 +60,18 @@ internal sealed class InputEvents : IDisposable
         };
         windowCallback = (_, type, hwnd, objectId, childId, _, time) =>
         {
+            if (type == 0x800B)
+            {
+                if (mode == CaptureMode.Window || objectId != 0 || childId != 0) return;
+                var movingRoot = Native.GetAncestor(hwnd, 2);
+                if (!TimelineBoundary.HandlesLocation(mode, hwnd, movingRoot, Native.GetForegroundWindow(), objectId, childId)) return;
+                Guard(() =>
+                {
+                    bool included = TimelineBoundary.IncludesWindow(mode, false, Native.Bounds(movingRoot), areas);
+                    if (boundaryCache.Changed(movingRoot, included)) Window(movingRoot, ClockTime(time), "foreground", included);
+                });
+                return;
+            }
             var root = Native.GetAncestor(hwnd, 2);
             if (type == 3 || (objectId == 0 && childId == 0 && root == Native.GetForegroundWindow()))
                 Guard(() => Window(hwnd, ClockTime(time), "foreground"));
@@ -67,7 +82,7 @@ internal sealed class InputEvents : IDisposable
         {
             mouseHook = Native.SetWindowsHookEx(14, mouseCallback, Native.GetModuleHandle(null), 0);
             foregroundHook = Native.SetWinEventHook(3, 3, 0, windowCallback, 0, 0, 0);
-            titleHook = Native.SetWinEventHook(0x800B, 0x800C, 0, windowCallback, 0, 0, 0);
+            titleHook = Native.SetWinEventHook(mode == CaptureMode.Window ? 0x800Cu : 0x800Bu, 0x800C, 0, windowCallback, 0, 0, 0);
             if (mouseHook == 0 || foregroundHook == 0 || titleHook == 0)
                 throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "Could not install recording event hooks.");
             Window(Native.GetForegroundWindow(), DateTimeOffset.Now, "foreground");

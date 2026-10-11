@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Ignore location-change notifications in window capture and child-control moves in monitor capture. Cache foreground monitor-boundary state so ordinary moves do not reread process/title details. Window-mode queued clicks also reject unrelated covering windows when processed.
+
 - Restrict timeline titles to the recorded window/owned dialogs or windows overlapping captured monitors. Replace foreign foreground context with neutral external events without identity fields; preserve this boundary through pause and split carry-over. Exclude clicks in uncaptured desktop gaps.
 
 - Keep Compact's 10-second maximum keyframe interval when re-encoding split parts; Original remains at 2 seconds. Continue checking final part sizes after metadata.

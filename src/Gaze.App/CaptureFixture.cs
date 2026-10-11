@@ -19,6 +19,7 @@ internal sealed class CaptureFixture : Form
     private bool opened, closed, paused, resumed, stopping;
     private bool checkedDialogScale;
     private bool eventInputSent;
+    private bool coverInputSent;
     [StructLayout(LayoutKind.Sequential)] private struct MouseInput { internal int X, Y; internal uint Data, Flags, Time; internal nuint Extra; }
     [StructLayout(LayoutKind.Explicit, Size = 40)] private struct TestInput { [FieldOffset(0)] internal uint Type; [FieldOffset(8)] internal MouseInput Mouse; }
     [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
@@ -108,6 +109,7 @@ internal sealed class CaptureFixture : Form
             if (args.Contains("--event-check") && elapsed > 1 && !eventInputSent)
             {
                 eventInputSent = true; Text = "Gaze synthetic fixture — Invoice 4242";
+                TopMost = true; BringToFront(); Activate();
                 Native.GetCursorPos(out var original);
                 var point = PointToScreen(new Point(80, 100));
                 Native.GetWindowThreadProcessId(Native.WindowFromPoint(point), out var clickProcess);
@@ -120,15 +122,28 @@ internal sealed class CaptureFixture : Form
             }
             if (elapsed > 2 && cover == null)
             {
-                cover = new Form { Text = "Unrelated covering window", StartPosition = FormStartPosition.Manual, Location = Location, Size = Size, BackColor = Color.Magenta };
+                TopMost = false;
+                cover = new Form { Text = "Unrelated covering window", TopMost = args.Contains("--event-check"), StartPosition = FormStartPosition.Manual, Location = Location, Size = Size, BackColor = Color.Magenta };
                 cover.Controls.Add(new Label { Text = "UNRELATED WINDOW MUST NOT APPEAR IN WINDOW CAPTURE", Dock = DockStyle.Fill }); cover.Show(); Log("Root covered by unrelated window");
             }
             if (elapsed > 4 && !opened)
             {
                 opened = true;
-                dialog = new Form { Text = "Owned fixture dialog", StartPosition = FormStartPosition.Manual, Location = new Point(Left + 60, Top + 60), ClientSize = args.Contains("--large-dialog") ? new Size(1200, 800) : new Size(500, 300), BackColor = Color.FromArgb(215, 245, 220) };
+                dialog = new Form { Text = "Owned fixture dialog", TopMost = args.Contains("--event-check"), StartPosition = FormStartPosition.Manual, Location = new Point(Left + 60, Top + 60), ClientSize = args.Contains("--large-dialog") ? new Size(1200, 800) : new Size(500, 300), BackColor = Color.FromArgb(215, 245, 220) };
                 dialog.Controls.Add(new Label { Text = "OWNED DIALOG\n\nExpected captured text: Dialog 67890\n\nWindow switches temporarily.", Dock = DockStyle.Fill, Font = new Font("Segoe UI", 16), Padding = new Padding(24) });
                 dialog.Show(this); Log("Owned dialog opened");
+            }
+            if (args.Contains("--event-check") && !args.Contains("--all-monitors") && elapsed > 3 && !coverInputSent && cover != null)
+            {
+                cover.BringToFront(); cover.Activate();
+                var point = cover.PointToScreen(new Point(80, 100));
+                if (Native.GetAncestor(Native.WindowFromPoint(point), 2) != cover.Handle)
+                    throw new InvalidOperationException("Synthetic covering window is not under the click point; no click injected.");
+                Native.GetCursorPos(out var original); SetCursorPos(point.X, point.Y);
+                var inputs = new[] { new TestInput { Type = 0, Mouse = new MouseInput { Flags = 2 } }, new TestInput { Type = 0, Mouse = new MouseInput { Flags = 4 } } };
+                try { if (SendInput(2, inputs, Marshal.SizeOf<TestInput>()) != 2) throw new InvalidOperationException("Could not inject the covering-window click."); }
+                finally { SetCursorPos(original.X, original.Y); }
+                coverInputSent = true; Log("Synthetic click sent to unrelated covering window; it must not enter the timeline.");
             }
             if (elapsed > 7 && !closed) { closed = true; dialog?.Close(); cover?.Close(); Log("Dialog and covering window closed"); }
             if (elapsed > 6 && !checkedDialogScale && args.Contains("--large-dialog"))
@@ -178,6 +193,7 @@ internal sealed class CaptureFixture : Form
             throw new InvalidOperationException("Actual window title changes or chapters are missing.");
         if (!args.Contains("--all-monitors"))
         {
+            if (!coverInputSent || clicks.Length != 5) throw new InvalidOperationException("Covering-window click was retained or test was not exercised.");
             var external = allEvents.Where(e => e.TryGetProperty("external", out var flag) && flag.GetBoolean()).ToArray();
             if (external.Length == 0 || external.Any(e => e.TryGetProperty("title", out _) || e.TryGetProperty("process", out _) || e.TryGetProperty("windowId", out _)))
                 throw new InvalidOperationException("Foreign foreground context was not anonymized.");

@@ -5,6 +5,25 @@ internal static class TimelineChecks
     internal static void Run(Action<string, Action> test)
     {
         var start = new DateTimeOffset(2026, 10, 11, 9, 0, 0, TimeSpan.FromHours(2));
+        test("Location events ignore window capture and child controls, refreshing monitor details only at boundary transitions", () =>
+        {
+            Require(!Gaze.App.TimelineBoundary.HandlesLocation(CaptureMode.Window, 1, 1, 1, 0, 0), "Window-mode movement was handled");
+            Require(!Gaze.App.TimelineBoundary.HandlesLocation(CaptureMode.CurrentMonitor, 2, 1, 1, 0, 0), "Child-control movement was handled");
+            Require(!Gaze.App.TimelineBoundary.HandlesLocation(CaptureMode.CurrentMonitor, 1, 1, 3, 0, 0), "Background movement was handled");
+            Require(!Gaze.App.TimelineBoundary.HandlesLocation(CaptureMode.CurrentMonitor, 1, 1, 1, -4, 0), "Non-window object movement was handled");
+            Require(Gaze.App.TimelineBoundary.HandlesLocation(CaptureMode.AllMonitors, 1, 1, 1, 0, 0), "Foreground root movement was ignored");
+            var cache = new Gaze.App.MonitorBoundaryCache(); cache.Remember(1, true); int refreshes = 0;
+            void Move(nint hwnd, bool inside)
+            {
+                if (!cache.Changed(hwnd, inside)) return;
+                refreshes++; cache.Remember(hwnd, inside);
+            }
+            for (int i = 0; i < 120; i++) Move(1, true);
+            Require(refreshes == 0, "Same-monitor movement refreshed window details");
+            Move(1, false); for (int i = 0; i < 120; i++) Move(1, false);
+            Move(1, true); Require(refreshes == 2, "Boundary flips were lost or repeatedly refreshed");
+            Move(2, true); Require(refreshes == 3, "A different foreground window reused stale cache state");
+        });
         test("Foreign window details are removed before storage and stay removed across pause and split carry-over", () =>
         {
             var timeline = new RecordingTimeline(5);
