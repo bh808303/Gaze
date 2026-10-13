@@ -1,0 +1,16 @@
+{
+  "completedTaskIds": [],
+  "checks": [
+    "dotnet build src/Gaze.App -c Release -p:Platform=x64 -p:UseSharedCompilation=false; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "dotnet run --project tests/Gaze.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "python -m unittest discover -s tests -p test_timeline_reader.py; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "git diff --check; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+  ],
+  "tasks": [{
+    "id": "optional-timeline-metadata",
+    "description": "Implement docs/factory/spec.md completely in this Gaze repository. Preserve the basic timeline; the single new toggle Record timeline metadata controls the agreed optional bundle. Use meaningful TDD, update documentation, and report limitations accurately.",
+    "acceptanceCriteria": ["All acceptance criteria in docs/factory/spec.md satisfied", "Mandatory checks pass", "Meaningful red-green evidence recorded"],
+    "testCommand": "dotnet run --project tests/Gaze.Tests",
+    "dependsOn": []
+  }]
+}
