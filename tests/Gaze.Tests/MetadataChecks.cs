@@ -63,6 +63,27 @@ internal static class MetadataChecks
                 Require(!root.GetRawText().Contains("PRIVATE CUSTOMER") && !root.GetRawText().Contains("private-browser"), "Foreign identity leaked into metadata");
                 Require(root.GetProperty("clockAnchors")[1].GetProperty("frame").GetInt32() == 6, "Resume anchor is missing");
             });
+            test("Optional MP4 bundle survives dense timed-text batches, collection status, sample gaps and reader filtering", () =>
+            {
+                var optional = new RecordingTimeline(fps, new() { RecordTimelineMetadata = true });
+                optional.Frame(startTime);
+                optional.Geometry(new(-20,10,160,120,0,0,160,120,160,120,"captured"),startTime);
+                optional.Metadata(new(0,0,startTime,"pointer-boundary",Boundary:"enter"));
+                for (int i=0; i<1000; i++) optional.Metadata(new(0,0,startTime.AddTicks(i),"wheel", Delta:i-500, Axis:"horizontal", ScreenX:10,ScreenY:20,X:30,Y:40));
+                optional.Metadata(new(0,0,startTime.AddMilliseconds(1),"button-release",Button:"left",ScreenX:10,ScreenY:20,X:30,Y:40));
+                optional.Metadata(new(0,0,startTime.AddMilliseconds(2),"pointer-boundary",Boundary:"leave"));
+                for (int i=1; i<frames; i++) optional.Frame(startTime.AddMilliseconds(i*200 + (i>=6 ? 1000:0)));
+                optional.Status("mouse","loss",3);
+                var path = Path.Combine(folder,"optional.mp4"); File.Copy(plain,path);
+                Require(RecordingMetadata.TryEmbedAsync(path,optional.Snapshot(frames).Slice(0,frames),encoder,message=>throw new Exception(message)).GetAwaiter().GetResult(),"Optional embed failed");
+                using var full = Read(path);
+                Require(full.RootElement.GetProperty("events").EnumerateArray().Count(e=>e.GetProperty("kind").GetString()=="wheel")==1000,"Dense packets were lost during actual muxing");
+                Require(full.RootElement.GetProperty("sampleOffsetsTicks")[6].GetInt64()==22_000_000,"Sample gap lost");
+                using var filtered = JsonDocument.Parse(Run(Environment.GetEnvironmentVariable("GAZE_TEST_PYTHON") ?? "python", "scripts/Read-Timeline.py", path, "--probe", probe,"--kind","wheel","--first-frame","0","--last-frame","0"));
+                Require(filtered.RootElement.GetProperty("events").GetArrayLength()==1000,"Reader kind/frame filter lost events");
+                Require(filtered.RootElement.GetProperty("collection").GetProperty("recordTimelineMetadata").GetBoolean(),"Collection context lost");
+                Require(filtered.RootElement.GetProperty("collectionStatus")[0].GetProperty("lost").GetInt64()==3,"Known loss lost");
+            });
             test("Failed metadata rewrite keeps the plain video and logs a warning", () =>
             {
                 var before = File.ReadAllBytes(plain); var warnings = new List<string>();

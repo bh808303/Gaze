@@ -105,7 +105,7 @@ internal sealed class TrayContext : ApplicationContext
                 { starting = false; session.Start(); lastTick = clock.Elapsed; escape.Reset(); Menu(); }
             });
             starting = true;
-            capture.Start(session.Mode, session.Root, settings.FrameRate, settings.ClickHighlight, settings.Folder, windowCanvas: settings.WindowCanvas, compression: settings.Compression, splitAt29Mb: settings.SplitAt29Mb, keyboardTimeline: settings.KeyboardTimeline);
+            capture.Start(session.Mode, session.Root, settings.FrameRate, settings.ClickHighlight, settings.Folder, windowCanvas: settings.WindowCanvas, compression: settings.Compression, splitAt29Mb: settings.SplitAt29Mb, collectionOptions: settings.CollectionOptions);
         }
         else Stop();
         Menu();

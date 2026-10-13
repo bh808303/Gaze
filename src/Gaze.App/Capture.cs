@@ -12,6 +12,10 @@ internal sealed class Capture : IDisposable
 {
     private readonly object gate = new();
     private readonly ClickQueue pendingClicks = new();
+    private readonly MouseQueue pendingMouse = new();
+    private readonly PointerSampler pointerSampler = new();
+    private bool metadata;
+    private readonly Dictionary<string, (Rectangle Source, Rectangle Destination)> mappings = [];
     private readonly KeyboardQueue pendingKeys = new();
     private readonly HashSet<int> keysDown = [];
     private readonly System.Collections.Concurrent.ConcurrentQueue<string> pendingWarnings = new();
@@ -58,7 +62,7 @@ internal sealed class Capture : IDisposable
         }
         throw new FileNotFoundException("FFmpeg is required. Place ffmpeg.exe beside Gaze, or set GAZE_FFMPEG to its path.");
     }
-    internal void Start(CaptureMode mode, nint root, int fps, bool clicks, string folder, bool diagnostics = false, WindowCanvasMode windowCanvas = WindowCanvasMode.OriginalWindow, CompressionMode compression = CompressionMode.Original, bool splitAt29Mb = false, bool keyboardTimeline = false)
+    internal void Start(CaptureMode mode, nint root, int fps, bool clicks, string folder, bool diagnostics = false, WindowCanvasMode windowCanvas = WindowCanvasMode.OriginalWindow, CompressionMode compression = CompressionMode.Original, bool splitAt29Mb = false, bool keyboardTimeline = false, bool recordTimelineMetadata = false, TimelineCollectionOptions? collectionOptions = null)
     {
         if (!Enum.IsDefined(compression)) throw new ArgumentOutOfRangeException(nameof(compression));
         this.compression = compression;
@@ -66,7 +70,13 @@ internal sealed class Capture : IDisposable
         recordingRoot = root;
         _ = EncoderPath(); this.mode = mode; this.fps = fps; this.folder = folder; this.diagnostics = diagnostics; this.clicks = clicks;
         Directory.CreateDirectory(folder);
-        timeline = new RecordingTimeline(fps);
+        var collection = collectionOptions ?? new() { RecordTimelineMetadata = recordTimelineMetadata, KeyboardTimeline = keyboardTimeline };
+        metadata = collection.RecordTimelineMetadata;
+        keyboardTimeline = collection.KeyboardTimeline;
+        timeline = new RecordingTimeline(fps, collection);
+        timeline.Status("mouse", "initializing");
+        timeline.Status("window", "initializing");
+        timeline.Status("keyboard", keyboardTimeline ? "initializing" : "disabled");
         if (mode == CaptureMode.Window)
         {
             target = root; window = new GraphicsSource(root, false, fps);
@@ -93,8 +103,10 @@ internal sealed class Capture : IDisposable
                 monitors.Add((screen.DeviceName, new Rectangle(screen.Bounds.X - bounds.X, screen.Bounds.Y - bounds.Y, screen.Bounds.Width, screen.Bounds.Height), new GraphicsSource(monitor, true, fps)));
             }
         }
-        try { input = new InputEvents(QueueClick, timeline.Window, Warn, () => mode == CaptureMode.Window ? target : 0, mode, root, captureAreas, keyboardTimeline ? QueueKey : null); }
-        catch (Exception e) { Warn($"Input event recording unavailable: {e.Message}"); }
+        try { input = new InputEvents(QueueClick, timeline.Window, Warn, () => mode == CaptureMode.Window ? target : 0, mode, root, captureAreas, keyboardTimeline ? QueueKey : null, metadata ? QueueMouse : null);
+            timeline.Status("mouse", "installed"); timeline.Status("window", "installed");
+            timeline.Status("keyboard", keyboardTimeline ? "installed" : "disabled"); }
+        catch (Exception e) { timeline.Status("mouse", "hook-installation-failed"); timeline.Status("window", "hook-installation-failed"); if (keyboardTimeline) timeline.Status("keyboard", "hook-installation-failed"); Warn($"Input event recording unavailable: {e.Message}"); }
         cancel = new(); worker = Task.Run(() => Encode(cancel.Token));
     }
     internal static void ValidateCanvas(Size canvas)
@@ -128,7 +140,7 @@ internal sealed class Capture : IDisposable
                     FlushWarnings();
                     lock (gate)
                     {
-                        pendingClicks.Drain(RecordClick);
+                        pendingClicks.Drain(RecordClick); DrainMouse();
                         pendingKeys.Drain(RecordKey);
                         if (paused || stopping) continue;
                         timeline!.Frame(DateTimeOffset.Now);
@@ -192,6 +204,7 @@ internal sealed class Capture : IDisposable
                     if (Native.IsWindow(target))
                     {
                         clickSource = Native.Bounds(target); clickDestination = destination;
+                        RecordGeometry(clickSource, destination, "captured");
                         if (clicks) Highlight(graphics, clickSource, clickDestination);
                     }
                 }
@@ -201,9 +214,17 @@ internal sealed class Capture : IDisposable
                 var connected = Screen.AllScreens.Select(s => s.DeviceName).ToHashSet();
                 foreach (var monitor in monitors)
                 {
-                    if (!connected.Contains(monitor.Device) || monitor.Source.Closed) continue;
+                    if (!connected.Contains(monitor.Device) || monitor.Source.Closed)
+                    {
+                        mappings.Remove(monitor.Device);
+                        RecordGeometry(Rectangle.Empty, Rectangle.Empty, monitor.Device);
+                        mappings.Remove(monitor.Device);
+                        continue;
+                    }
                     if (monitor.Source.Error != null) throw new InvalidOperationException(monitor.Source.Error);
-                    var frame = monitor.Source.Latest; if (frame != null) Draw(graphics, frame, monitor.Bounds);
+                    var frame = monitor.Source.Latest; if (frame != null) { Draw(graphics, frame, monitor.Bounds);
+                    var actual = Screen.AllScreens.First(s => s.DeviceName == monitor.Device).Bounds;
+                    RecordGeometry(new Rectangle(actual.Location, new Size(frame.Width,frame.Height)), monitor.Bounds, monitor.Device); }
                 }
                 if (clicks) Highlight(graphics, desktopBounds, new Rectangle(Point.Empty, desktopBounds.Size));
             }
@@ -239,6 +260,53 @@ internal sealed class Capture : IDisposable
     {
         if (!paused && !stopping && !disposed) pendingClicks.Enqueue(button, point, time);
     }
+    private void QueueMouse(RawMouse value)
+    {
+        if (!paused && !stopping && !disposed) pendingMouse.Enqueue(value);
+    }
+    private void DrainMouse()
+    {
+        pendingMouse.Drain(RecordMouse);
+        if (pendingMouse.Lost > 0) timeline?.Status("mouse", "loss", pendingMouse.Lost);
+    }
+    private void RecordMouse(RawMouse value)
+    {
+        int x = 0, y = 0;
+        bool included;
+        if (mode != CaptureMode.Window)
+            included = TimelineBoundary.TryMapMonitorPoint(value.Point, captureAreas, mappings.Values, out x, out y);
+        else
+        {
+            var source = clickSource;
+            var destination = clickDestination;
+            included = source.Width > 0 && source.Height > 0 && source.Contains(value.Point);
+            if (included)
+            {
+                var hit = Native.GetAncestor(Native.WindowFromPoint(value.Point), 2);
+                included = hit != 0 && Native.RecordedClickWindow(hit, recordingRoot, target);
+            }
+            if (included)
+            {
+                x = destination.X + (int)((value.Point.X - source.X) * (long)destination.Width / source.Width);
+                y = destination.Y + (int)((value.Point.Y - source.Y) * (long)destination.Height / source.Height);
+            }
+        }
+        foreach (var item in pointerSampler.Sample(included, value.Point.X, value.Point.Y, x, y, value.Time, value.Milliseconds, value.Held, value.Kind == "pointer"))
+            timeline?.Metadata(item);
+        if (!included || value.Kind == "pointer") return;
+        if (value.Kind == "click")
+        {
+            timeline?.Click(value.Button!, value.Point.X, value.Point.Y, x, y, value.Time);
+            UpdateClickHighlight(value.Button!, value.Point, value.Time);
+        }
+        else timeline?.Metadata(new(0,0,value.Time,value.Kind,Button:value.Button,ScreenX:value.Point.X,ScreenY:value.Point.Y,X:x,Y:y,
+            Delta:value.Kind == "wheel" ? value.Delta : null, Axis:value.Axis));
+    }
+    private void RecordGeometry(Rectangle source, Rectangle destination, string scope)
+    {
+        mappings[scope] = (source, destination);
+        timeline?.Geometry(new(source.X,source.Y,source.Width,source.Height,destination.X,destination.Y,destination.Width,destination.Height,Canvas.Width,Canvas.Height,scope), DateTimeOffset.Now);
+    }
     private void QueueKey(RawKey key)
     {
         if (!paused && !stopping && !disposed) pendingKeys.Enqueue(key);
@@ -271,11 +339,17 @@ internal sealed class Capture : IDisposable
             int x = destination.X + (int)((point.X - source.X) * (long)destination.Width / source.Width);
             int y = destination.Y + (int)((point.Y - source.Y) * (long)destination.Height / source.Height);
             timeline?.Click(button, point.X, point.Y, x, y, time);
-            if (button == "left") { clickPoint = point; clickUntil = Environment.TickCount64 + 400 - Math.Max(0, (long)(DateTimeOffset.Now - time).TotalMilliseconds); }
+            UpdateClickHighlight(button, point, time);
         }
+    }
+    private void UpdateClickHighlight(string button, Point point, DateTimeOffset time)
+    {
+        if (button == "left") { clickPoint = point; clickUntil = Environment.TickCount64 + 400 - Math.Max(0, (long)(DateTimeOffset.Now - time).TotalMilliseconds); }
     }
     private void Warn(string message)
     {
+        if (message.Contains("input events could not be recorded", StringComparison.OrdinalIgnoreCase) || message.Contains("Captured-window event could not be recorded", StringComparison.Ordinal))
+            timeline?.Status("input", "processing-error");
         pendingWarnings.Enqueue($"{DateTimeOffset.Now:O} {message}{Environment.NewLine}");
     }
     private void FlushWarnings()
@@ -286,9 +360,9 @@ internal sealed class Capture : IDisposable
             catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }
-    internal void Pause() { lock (gate) { paused = true; pendingClicks.Drain(RecordClick); pendingKeys.Drain(RecordKey); keysDown.Clear(); timeline?.Pause(DateTimeOffset.Now); } StatusChanged?.Invoke(RecorderStatus.Paused); }
+    internal void Pause() { lock (gate) { paused = true; pendingClicks.Drain(RecordClick); DrainMouse(); pendingKeys.Drain(RecordKey); keysDown.Clear(); pendingMouse.ResetSampling(); pointerSampler.Reset(); timeline?.Pause(DateTimeOffset.Now); } StatusChanged?.Invoke(RecorderStatus.Paused); }
     internal void Resume() { lock (gate) { timeline?.Resume(DateTimeOffset.Now); paused = false; } StatusChanged?.Invoke(RecorderStatus.Recording); }
-    internal void Stop() { if (disposed) return; lock (gate) { stopping = true; pendingClicks.Drain(RecordClick); pendingKeys.Drain(RecordKey); timeline?.Stop(); } cancel?.Cancel(); }
+    internal void Stop() { if (disposed) return; lock (gate) { stopping = true; pendingClicks.Drain(RecordClick); DrainMouse(); pendingKeys.Drain(RecordKey); timeline?.Stop(); } cancel?.Cancel(); }
     internal static void CopyFile(string path)
         => CopyFiles(new[] { path });
     internal static void CopyFiles(IReadOnlyList<string> paths)

@@ -7,4 +7,5 @@
   <ItemGroup><Compile Include="../../src/Gaze.App/ClickQueue.cs" Link="ClickQueue.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../../src/Gaze.App/TimelineBoundary.cs" Link="TimelineBoundary.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../../src/Gaze.App/CompressionPrototype.cs" Link="CompressionPrototype.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../../src/Gaze.App/MouseQueue.cs" Link="MouseQueue.cs" /></ItemGroup>
 </Project>

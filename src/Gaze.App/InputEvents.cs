@@ -21,7 +21,7 @@ internal sealed class InputEvents : IDisposable
     private bool warned;
     private readonly Action<nint, DateTimeOffset, string> describeWindow;
     private readonly MonitorBoundaryCache boundaryCache = new();
-    internal InputEvents(Action<string, Point, DateTimeOffset> click, Action<string?, string?, string?, DateTimeOffset, string, bool> window, Action<string> warning, Func<nint> capturedWindow, CaptureMode mode, nint recordingRoot, IReadOnlyList<Rectangle> areas, Action<RawKey>? key = null)
+    internal InputEvents(Action<string, Point, DateTimeOffset> click, Action<string?, string?, string?, DateTimeOffset, string, bool> window, Action<string> warning, Func<nint> capturedWindow, CaptureMode mode, nint recordingRoot, IReadOnlyList<Rectangle> areas, Action<RawKey>? key = null, Action<RawMouse>? mouseEvent = null)
     {
         void Guard(Action action)
         {
@@ -52,12 +52,22 @@ internal sealed class InputEvents : IDisposable
         describeWindow = (hwnd, time, scope) => Window(hwnd, time, scope);
         mouseCallback = (code, message, data) =>
         {
-            if (code >= 0 && message is 0x201 or 0x204 or 0x207 or 0x20B)
+            if (code >= 0 && message is 0x200 or 0x201 or 0x202 or 0x204 or 0x205 or 0x207 or 0x208 or 0x20B or 0x20C or 0x20A or 0x20E)
                 Guard(() =>
                 {
+                    bool down = message is 0x201 or 0x204 or 0x207 or 0x20B;
+                    if (mouseEvent == null && !down) return;
                     var mouse = Marshal.PtrToStructure<MouseData>(data);
-                    string button = message == 0x201 ? "left" : message == 0x204 ? "right" : message == 0x207 ? "middle" : (mouse.Buttons >> 16) == 1 ? "x1" : "x2";
-                    click(button, mouse.Point, ClockTime(mouse.Time));
+                    string? button = message is 0x201 or 0x202 ? "left" : message is 0x204 or 0x205 ? "right" : message is 0x207 or 0x208 ? "middle" : message is 0x20B or 0x20C ? ((mouse.Buttons >> 16) == 1 ? "x1" : "x2") : null;
+                    var time = ClockTime(mouse.Time);
+                    if (mouseEvent != null)
+                    {
+                        string kind = down ? "click" : message == 0x200 ? "pointer" : message is 0x20A or 0x20E ? "wheel" : "button-release";
+                        mouseEvent(new(kind, button, mouse.Point, time, Environment.TickCount64,
+                            message is 0x20A or 0x20E ? unchecked((short)(mouse.Buttons >> 16)) : 0,
+                            message == 0x20A ? "vertical" : message == 0x20E ? "horizontal" : null));
+                    }
+                    else click(button!, mouse.Point, time);
                 });
             return Native.CallNextHookEx(mouseHook, code, message, data);
         };

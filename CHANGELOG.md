@@ -2,6 +2,12 @@
 
 ## Unreleased — 2026-10-13
 
+- Add **Record timeline metadata**, off by default for new/legacy settings and frozen at recording startup. Preserve the basic timeline and separate keyboard opt-in.
+- Add factual button releases, signed raw vertical/horizontal wheel deltas, bounded changed-position pointer samples and neutral boundary transitions. Preserve original timestamps and capture/hit-test restrictions; drain accepted events on pause/stop and exclude paused input.
+- Extend MP4 timeline schema to v2 with collection options/status, exact sample offsets and deduplicated capture geometry/mapping events, retaining v1/legacy cue reader compatibility. Carry geometry and boundary context into split parts.
+- Batch dense frame events below timed-text packet limits. Add event kind, clock-time and local-frame reader filters with context, preserving safe plain-video fallback.
+- Add red-green tests for defaults, settings/recording options, pointer rates/privacy, bounded queue loss, resume/split context, timing, dense serialization and reader filtering; verify real MP4 packet retention. Native desktop behavior and silent Windows hook removal remain outside this validation.
+
 - Add Start at Windows sign-in in Settings, defaulting off unless Gaze is registered. Read actual current-user registration, quote executable paths, remove only Gaze on disable, and report failures. Preserve silent tray startup without automatic recording.
 - Re-save the enabled switch after moving a portable executable to repair its path. Reject dotnet development-host registration. Add isolated startup tests; actual Windows sign-in execution remains unverified.
 
