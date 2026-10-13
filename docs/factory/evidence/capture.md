@@ -1,30 +1,25 @@
-# T01 native screenshot feasibility
+# T01 native screenshot feasibility — blocked
 
-Status: **blocked by validation prerequisites** (2026-10-14). No screenshot implementation or production controls were changed. This is not evidence that Windows Graphics Capture fails the approved semantics.
+2026-10-14. Required command: `pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }`.
 
-## Environment observed
+The required build exited 1 during restore, before compilation or acceptance-test execution. Diagnostic restore also exited 1 (Build FAILED, zero reported errors). Root cause is undetermined; no project.assets.json was available for Gaze.App. This is a missing build prerequisite, not a meaningful red test proving missing screenshot behavior. No green result exists. Stop the affected screenshot dependency chain until restore/build works; production controls and capture behavior remain unchanged.
 
-- Windows runtime reports 10.0.26300; x64.
-- .NET SDK 10.0.303; runtime 10.0.11.
-- One attached display: `\\.\DISPLAY1`, physical bounds `(0,0,3072,1728)`.
-- Hardware model, GPU and driver version: unavailable; CIM queries returned Access denied. No hardware/version claims are inferred.
-- Mixed-DPI monitor pair: unavailable. DPI values were not measured.
+The draft native acceptance fixture is preserved in ../runs/20261014-005100-746/TranscribeCaptureProbe.cs for resumption. It checks decoded PNG colors for full-window occluded freshness and visible rectangle pixels, clipped dimensions, capture-affinity exclusion, and recovery after an invalid handle with retained previous bytes. It has not compiled or executed. No screenshot implementation was added.
 
-## Required observations
+Environment from dotnet --info: Windows 10.0.26300, win-x64; SDK 10.0.303; .NET/WindowsDesktop runtime 10.0.11. Hardware and driver versions unavailable/unqueried.
 
 | Scenario | Result |
 |---|---|
-| AC03 cursor-free full-window PNG and changing target | Untested |
-| AC03 occluded-window freshness | Untested |
-| AC04 visible-pixel rectangle and starting-monitor clipping | Untested |
-| AC03/AC04 other-monitor and mixed-DPI capture | Blocked: only one display is attached |
-| AC07 capture UI / selection / feedback exclusion | Untested |
-| AC14 ordinary failure preserves process and previous batch | Untested |
+| Cursor-free full-window PNG | Untested: build prerequisite |
+| Occluded-window freshness | Untested: build prerequisite |
+| Visible-pixel rectangle | Untested: build prerequisite |
+| Starting-monitor clipping (single monitor) | Untested: build prerequisite |
+| UI exclusion | Untested: build prerequisite |
+| Ordinary failure/process and batch preservation | Untested: build prerequisite |
+| Multi-monitor and mixed DPI | Deferred/untested under human-approved validation adjustment; not completion prerequisites |
+| Hardware/driver versions | Deferred/unavailable; not completion prerequisites |
 
-The existing `GraphicsSource` enables cursor capture and publishes an asynchronous latest frame. Inspection does not prove cursor-free screenshot semantics, freshness, or exclusion. No acceptance RED/GREEN cycle was started; the prerequisite failure is not a behavioral red test. Build was not run because implementation stopped before changes.
+Exact build and diagnostic restore commands, outputs and exit codes are retained in ../runs/20261014-005100-746/. No native result is claimed. Large screenshot batches consume memory; this task introduces no persistence or clipboard disk spill.
 
-## Dependency limitation
-
-Keep the affected screenshot integration dependency chain stopped until native feasibility can be tested with a mixed-DPI multi-monitor desktop and OS/GPU/driver versions can be recorded. Approved full-window and visible-screen semantics remain unchanged; no substitute semantics are approved by this result.
-
-Exact prerequisite commands, outputs and exit codes are saved in `docs/factory/runs/20261014-004550-136/`. `desktop-prerequisite.ps1` exits 1 for the missing monitor prerequisite. `prerequisites.output.txt` also records the denied hardware queries; its overall shell status is not a capture acceptance test.
+## Restore recovery
+Parent diagnosis on 2026-10-14: `dotnet restore src/Gaze.App --packages .packages --verbosity minimal` executed with local permissions returned exit 0 and restored Gaze.Core, Gaze.Panel and Gaze.App. The previous zero-error restore failure occurred under the worker's restricted environment; this comparison suggests an environment/access cause but does not identify the exact denied operation. Dependencies/assets now exist in this worktree. Reuse the saved acceptance fixture from docs/factory/runs/20261014-005100-746/TranscribeCaptureProbe.cs and proceed with meaningful behavioral RED/GREEN. Do not report prerequisite failure as RED. If restricted parallel restore fails despite cached assets, diagnose with supported single-process restore (`dotnet restore src/Gaze.App --packages .packages --disable-parallel -p:BuildInParallel=false`) before declaring blocked; preserve required checks and escalate specific access needs rather than silently weakening checks.
