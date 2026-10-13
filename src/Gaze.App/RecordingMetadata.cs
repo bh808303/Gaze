@@ -27,18 +27,34 @@ internal static class RecordingMetadata
     internal static string Subtitles(TimelinePart part)
     {
         var text = new StringBuilder(); int index = 0;
+        long next = 0;
+        string Payload(IEnumerable<TimelineEvent> events)
+        {
+            var json = JsonSerializer.Serialize(new { version = 1, events }, Json);
+            var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+            return "gaze-base64-v1:" + string.Join("\n", Enumerable.Range(0, (encoded.Length + 119) / 120)
+                .Select(i => encoded.Substring(i * 120, Math.Min(120, encoded.Length - i * 120))));
+        }
+        void Cue(int frame, List<TimelineEvent> batch)
+        {
+            var payload = Payload(batch);
+            long first = Math.Max(next, (long)frame * 1000 / part.FramesPerSecond);
+            next = first + 1;
+            if (next > (long)part.FrameCount * 1000 / part.FramesPerSecond)
+                throw new InvalidOperationException("Event batches exceed available timed-text millisecond slots; plain video retained.");
+            text.Append(++index).Append('\n').Append(Time(first)).Append(" --> ").Append(Time(next)).Append('\n').Append(payload).Append("\n\n");
+        }
         foreach (var group in part.Events.GroupBy(e => e.Frame).OrderBy(g => g.Key))
         {
-            long first = (long)group.Key * 1000 / part.FramesPerSecond, last = (long)(group.Key + 1) * 1000 / part.FramesPerSecond;
-            text.Append(++index).Append('\n').Append(Time(first)).Append(" --> ").Append(Time(last)).Append('\n');
-            var json = JsonSerializer.Serialize(new { version = 1, events = group.ToArray() }, Json);
-            // SubRip interprets backslash escapes and markup even inside JSON strings.
-            var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
-            // SubRip wraps long lines; use short lines deliberately and decode whitespace safely.
-            var payload = "gaze-base64-v1:" + string.Join("\n", Enumerable.Range(0, (encoded.Length + 119) / 120)
-                .Select(i => encoded.Substring(i * 120, Math.Min(120, encoded.Length - i * 120))));
-            if (Encoding.UTF8.GetByteCount(payload) > 60_000) throw new InvalidOperationException("Too many events in one frame to fit a timed-text packet.");
-            text.Append(payload).Append("\n\n");
+            var batch = new List<TimelineEvent>(); int bytes = 0;
+            foreach (var item in group)
+            {
+                int size = Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(item, Json));
+                if (size > 40_000) throw new InvalidOperationException("A single event exceeds the timed-text budget.");
+                if (bytes + size > 40_000 && batch.Count > 0) { Cue(group.Key, batch); batch.Clear(); bytes = 0; }
+                batch.Add(item); bytes += size + 1;
+            }
+            if (batch.Count > 0) Cue(group.Key, batch);
         }
         return text.ToString();
     }

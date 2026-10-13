@@ -98,6 +98,7 @@ public partial class PanelWindow : FluentWindow
         Compression.SelectedIndex = (int)options.Compression;
         SplitAt29Mb.IsChecked = false; SplitAt29Mb.IsChecked = options.SplitAt29Mb;
         KeyboardTimeline.IsChecked = options.KeyboardTimeline;
+        RecordTimelineMetadata.IsChecked = options.RecordTimelineMetadata;
         StartAtSignIn.IsChecked = startupEnabled;
     }
     public void RunPreview(string path)
@@ -213,6 +214,7 @@ public partial class PanelWindow : FluentWindow
             options.Compression = (CompressionMode)Compression.SelectedIndex;
             options.SplitAt29Mb = SplitAt29Mb.IsChecked == true;
             options.KeyboardTimeline = KeyboardTimeline.IsChecked == true;
+            options.RecordTimelineMetadata = RecordTimelineMetadata.IsChecked == true;
             options.StartAtSignIn = StartAtSignIn.IsChecked == true;
             apply(options); Home();
         }

@@ -14,6 +14,7 @@ public sealed class PanelOptions
     public bool AutoCopy { get; set; }
     public bool SplitAt29Mb { get; set; }
     public bool KeyboardTimeline { get; set; }
+    public bool RecordTimelineMetadata { get; set; }
     public bool ClickHighlight { get; set; }
     public bool DoubleEscape { get; set; }
 }

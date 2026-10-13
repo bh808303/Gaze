@@ -3,6 +3,7 @@ import argparse
 import base64
 import binascii
 import json
+from datetime import datetime
 from pathlib import Path
 import shutil
 import subprocess
@@ -62,19 +63,55 @@ def read_timeline(recording, probe):
     return timeline
 
 
+def filter_timeline(timeline, kinds=None, first_frame=None, last_frame=None, after=None, before=None):
+    def clock(value):
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    def in_range(event):
+        return ((first_frame is None or event["frame"] >= first_frame)
+                and (last_frame is None or event["frame"] <= last_frame)
+                and (after is None or clock(event["clockTime"]) >= clock(after))
+                and (before is None or clock(event["clockTime"]) <= clock(before)))
+    result = dict(timeline)
+    result["events"] = [e for e in timeline["events"] if in_range(e) and (not kinds or e["kind"] in kinds)]
+    starting = {}
+    transitions = []
+    for index, event in enumerate(timeline["events"]):
+        if event["kind"] not in ("geometry", "window", "pointer-boundary"):
+            continue
+        # Both upper constraints apply to context too, even when clocks and
+        # frames disagree (for example after a wall-clock adjustment).
+        if ((last_frame is not None and event["frame"] > last_frame)
+                or (before is not None and clock(event["clockTime"]) > clock(before))):
+            continue
+        if in_range(event):
+            transitions.append((index, event))
+        else:
+            preceding = ((first_frame is not None and event["frame"] < first_frame)
+                         or (after is not None and clock(event["clockTime"]) < clock(after)))
+            if preceding:
+                starting[(event["kind"], event.get("scope"))] = (index, event)
+    result["context"] = [event for _, event in sorted(list(starting.values()) + transitions)]
+    return result
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("recording", type=Path)
     parser.add_argument("--probe", type=Path, help="FFprobe executable (defaults to adjacent ffprobe.exe or PATH)")
+    parser.add_argument("--kind", action="append", help="Event kind (repeatable)")
+    parser.add_argument("--first-frame", type=int)
+    parser.add_argument("--last-frame", type=int)
+    parser.add_argument("--after", help="Inclusive ISO 8601 clock time with UTC offset")
+    parser.add_argument("--before", help="Inclusive ISO 8601 clock time with UTC offset")
     args = parser.parse_args()
     adjacent = Path(__file__).resolve().with_name("ffprobe.exe")
     probe = args.probe or (adjacent if adjacent.is_file() else shutil.which("ffprobe"))
     if not probe:
         parser.error("FFprobe not found. Use --probe <path-to-ffprobe.exe>.")
     try:
-        print(json.dumps(read_timeline(args.recording, probe), ensure_ascii=False, separators=(",", ":")))
+        print(json.dumps(filter_timeline(read_timeline(args.recording, probe), args.kind, args.first_frame, args.last_frame, args.after, args.before), ensure_ascii=False, separators=(",", ":")))
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
         print(f"Cannot read Gaze timeline: {error}", file=sys.stderr)
         return 1

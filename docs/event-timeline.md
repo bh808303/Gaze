@@ -1,10 +1,10 @@
-# Gaze event timeline v1
+# Gaze event timeline v2 (v1-compatible reader)
 
 New MP4 files have three complementary representations:
 
 - Chapters named `process — title` at captured-window/title changes in selected-window mode, or foreground window/title changes in monitor modes.
-- A disabled-by-default `mov_text` track with handler name `Gaze events`. Each timed cue is `gaze-base64-v1:` followed by base64-encoded UTF-8 JSON: `{"version":1,"events":[...]}`. This protects backslashes, newlines and markup from SubRip conversion. Events sharing a video frame share a cue. Empty MP4 subtitle-clear packets have no events.
-- A global `gaze_timeline` tag containing version, frame rate, frame count, original recording start, the part's original first frame, exact part start time, and clock anchors. The tag's events array is empty; events live in the timed track.
+- A disabled-by-default `mov_text` track with handler name `Gaze events`. Each timed cue is `gaze-base64-v1:` followed by base64-encoded UTF-8 JSON: `{"version":1,"events":[...]}`. This protects backslashes, newlines and markup from SubRip conversion. Events sharing a video frame share one or more bounded cues. Batch cues occupy sequential one-millisecond slots starting at the nominal frame time; the event fields, rather than cue presentation time, are authoritative. Empty MP4 subtitle-clear packets have no events.
+- A global `gaze_timeline` tag containing version, frame rate, frame count, original recording start, the part's original first frame, exact part start time, clock anchors, collection options/status, and optional exact sample offsets. The tag's events array is empty; events live in the timed track.
 
 `Read-Timeline.py` returns these as one JSON object, replacing the empty events array with all timed-track events and adding chapters in seconds. It uses one FFprobe subprocess, not image extraction. Run `python Read-Timeline.py recording.mp4`; pass `--probe <ffprobe-path>` if FFprobe is not beside the script or on PATH. Missing metadata produces an error and exit code 1.
 
@@ -46,7 +46,7 @@ Each part gets events within its own frame range, rebased to zero, and the prece
 
 Metadata is added to a new temporary MP4 using video stream-copy. FFmpeg 7.1 enables its first subtitle track regardless of requested disposition; Gaze clears only the Gaze-events track's MP4 `tkhd` enabled bit after muxing. Packet hashes are tested unchanged. Other player subtitle preferences may still enable the track.
 
-The original plain video is replaced only after the remux and track flag update succeed. Failure retains it and appends a warning to Gaze-warnings.log. An event cue exceeding the timed-text packet budget causes the same safe fallback instead of silently truncating JSON. Temporary metadata/SRT files are removed. Interrupted-process recovery remains unsupported.
+The original plain video is replaced only after the remux and track flag update succeed. Failure retains it and appends a warning to Gaze-warnings.log. Dense frames are batched using a 40,000-byte JSON-event budget (payloads stay below 60,000 bytes including base64 and line wrapping). A single event larger than this budget, or more batches than available one-millisecond slots in the file, causes the same safe fallback instead of truncation. Temporary metadata/SRT files are removed. Interrupted-process recovery remains unsupported.
 
 When splitting is enabled, each completed part is checked against 29,000,000 bytes after adding its metadata. A small original that grows over the cap is split too. Splitting re-encodes from the original and then stream-copies metadata onto the part. The original is removed only after all size-checked parts are published.
 
@@ -69,3 +69,44 @@ Window mode subscribes only to title changes, not location changes. Monitor loca
 The native event fixture opens a WinForms ContextMenuStrip through a synthetic right-click and verifies its opening/item clicks. It additionally creates a native `#32768` menu and opens a native ComboBox `ComboLBox` list. Both were ownerless on the tested Windows desktop and initially lost their clicks. Regression steps hold the mouse button down for at least 400 ms, leaving popups open across frame ticks, then verify the extracted click coordinates and successful menu/selection actions. The unrelated covering-window click must remain absent.
 
 Ownerless popup recognition runs only on the queue consumer. A `#32768` menu requires Windows' GUI thread menu mode and a recorded-window/owned-dialog `hwndMenuOwner`; a `ComboLBox` requires focus within the recorded window and an exact match to that focused combo's `hwndList`. If the focused handle is not a combo, Gaze tries only its direct recorded parent, covering editable combos whose Edit child has focus. The fixture includes both DropDownList and DropDown, asserting that the editable child holds focus, direct lookup fails and its parent is the expected combo before clicking. Sharing a process or thread alone is insufficient. Geometry restrictions still apply, so popup portions outside the recorded bounds remain excluded. These native fixtures run in Gaze's own process; cross-process app behavior remains unverified. Custom popup classes and historical hit-testing after a popup has already closed are not covered by these native tests. API layouts: [GUITHREADINFO](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-guithreadinfo), [COMBOBOXINFO](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-comboboxinfo).
+
+## Optional factual bundle and schema v2
+
+`Record timeline metadata` is the single new Settings toggle, off by default including settings written before this field existed. Saving settings applies the bundle to the next recording; current recording options are copied at startup. Basic timeline recording is independent of this toggle, and `Keyboard events in timeline` retains its separate default-off setting.
+
+The global tag and reader output add:
+
+- `version: 2`; cue envelopes remain `version: 1` with the established `gaze-base64-v1:` encoding. Earlier schema-v1 tags and plain-JSON cues remain readable without migration. Missing collection fields in older files mean unknown, not disabled.
+- `collection: {recordTimelineMetadata: bool, keyboardTimeline: bool}`. `recordTimelineMetadata` enables the entire optional bundle; absence of events while enabled is distinct from disabled collection.
+- `collectionStatus`: source/state/lost records. Sources are `mouse`, `window`, `keyboard`, and (on a known processing error) `input`. States used by recording startup are `initializing`, `installed`, `disabled`, and `hook-installation-failed`. Mouse queue overflow sets `state: "loss"` with a cumulative `lost` count; known callback processing errors set `input` to `processing-error`. These are recording-wide observations, repeated in each split part, not proof that a hook remained alive throughout every interval. If installing any hook fails, all created hooks are disposed and the collection is marked failed. Status can only be embedded if video metadata embedding succeeds; otherwise the warnings log and plain video remain.
+- `sampleOffsetsTicks`, present only with the bundle: one signed integer per encoded frame, relative to `partStartTime`, in 100-nanosecond ticks. The first is zero. Add the offset to `partStartTime` to recover the actual sampler wall-clock time. Values preserve gaps, pauses and wall-clock adjustments instead of inferring time from FPS. This compact array measures encoder sampling, not Windows frame delivery; repeated/stale source images are possible. It is not a visual-change detector.
+
+Additional event kinds (all retain `frame`, `recordingFrame`, `clockTime` and `carryOver`):
+
+| Kind | Optional factual fields | Meaning |
+| --- | --- | --- |
+| `button-release` | `button`, `screenX`, `screenY`, `x`, `y` | Delivered mouse-button up transition inside the capture boundary |
+| `wheel` | `axis`, `delta`, `screenX`, `screenY`, `x`, `y` | `axis` is `vertical` or `horizontal`; `delta` is the original signed high-word delta, including sub-120 values, with no normalization into inferred scroll distance |
+| `pointer` | `screenX`, `screenY`, `x`, `y` | Changed-position pointer sample within the capture boundary |
+| `pointer-boundary` | `boundary` | `enter` or `leave` for the first/changed observed inclusion state; both omit all coordinates and foreign window identity |
+| `geometry` | `scope`, `geometry` | Initial mapping or changed mapping at a sampled frame |
+
+`geometry` contains `sourceX`, `sourceY`, `sourceWidth`, `sourceHeight` in screen pixels; `x`, `y`, `width`, `height` for the destination rectangle in encoded pixels; `canvasWidth`, `canvasHeight`; and `scope` (`captured` for window mode, or the captured monitor device name). Window geometry reflects native bounds and actual centered/scaled output. Monitor geometry records the current screen origin and delivered frame size against its fixed montage destination. A disconnected/closed monitor has zero source/destination rectangles. The canvas and originally armed capture areas remain fixed for the recording. Geometry is compared by value, so unchanged per-frame mappings add no event. Split parts carry preceding geometry and pointer boundary state as `carryOver: true` when needed, with local frame zero and original recording frame/time.
+
+Mouse hooks only decode/timestamp/enqueue raw input; hit-testing, mapping, boundary events and timeline updates occur on the consumer. Pointer movement is prefiltered to changed positions and intervals of at least 100 ms normally / 34 ms while any delivered button-down is held (10 Hz / about 29.4 Hz, below 30 Hz). Consumer samples apply the same bounds. Discrete presses/releases/wheels are not rate-limited. The pending mouse queue has a 4,096-event cap and a 256-pointer cap; overflow increments the known loss count. Pointer interval suppression/unchanged positions are intentional sampling, not queue overflow. Hooks do not wait for rendering; the queue's short lock only protects queued data, and the consumer processes detached batches outside that lock.
+
+Window-mode optional input uses the same recorded-root/owned-dialog/menu/combo relationship hit-test as basic clicks, before storing coordinates. Monitor-mode input must stay within originally captured monitor areas and the current observed source mapping. An empty current mapping set or an invalid source/destination excludes optional input; the original desktop bounds never substitute for a missing mapping. After the last source is removed, the next delivered input can produce only a coordinate-free leave transition. Outside samples produce only neutral boundary events. Boundary observations occur on delivered sampled movement or discrete input; a fast out-and-back crossing may be missed. Pause/stop drain accepted discrete events before closing the timeline, ignore paused input, and reset pointer/button sampling on pause. Resume-gap optional events use the first resumed frame with their original timestamps, following the same unsampled-resume cancellation rule as clicks and keys. A button already held before recording/resume is not assumed held until a new down transition is delivered.
+
+Windows can remove a low-level hook silently; neither `installed` nor a zero loss count detects that. Secure desktop input, unavailable hook events, brief unsampled crossings, historical desktop hit-testing and native monitor reconfiguration across GPUs/DPI are not guaranteed. No action labels, gestures, dialog detection, cursor-shape records, Windows diagnostics or visual-change interpretation are added.
+
+## Reader filters and context
+
+Use repeatable `--kind` arguments, inclusive `--first-frame` / `--last-frame` (local file frames), and inclusive `--after` / `--before` (ISO 8601 clock timestamps with UTC offsets). Example:
+
+```powershell
+python scripts/Read-Timeline.py recording.mp4 --probe ffprobe.exe --kind wheel --kind button-release --first-frame 10 --last-frame 50
+```
+
+Time comparisons normalize UTC offsets through datetime comparison. All collection options/status, sample offsets, anchors and chapters remain in the result. `events` contains matching events; `context` contains the latest preceding window, geometry and pointer-boundary state by kind/scope plus every applicable state transition within the inclusive selected range, independently of activity-kind filters (including kind-only filtering). Events exactly at a lower bound remain in context. Both upper frame and clock constraints apply to context; frame and clock constraints are intersected. Context follows original event order. Context events retain original fields and are not matching activity. With no filters, all events remain available. The reader still invokes FFprobe once, accepts legacy cues, and reports malformed packets without silently pretending the skipped content was valid.
+
+Validation covers core state/queues, real Settings serialization and recording-option snapshots, reader compatibility/filters, and real FFmpeg/FFprobe MP4 batching, hashes and split retention. It does not establish live Windows hook behavior, popup releases after closure, visual settings layout, GPU capture behavior, DPI correctness or monitor reconfiguration. No real user recording is required by these tests.

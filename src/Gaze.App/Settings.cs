@@ -15,6 +15,7 @@ internal sealed class Settings
     public bool AutoCopy { get; set; } = true;
     public bool SplitAt29Mb { get; set; }
     public bool KeyboardTimeline { get; set; }
+    public bool RecordTimelineMetadata { get; set; }
     public bool DoubleEscape { get; set; } = true;
     public uint Modifiers { get; set; } = 3;
     public Keys Key { get; set; } = Keys.PrintScreen;
@@ -35,6 +36,7 @@ internal sealed class Settings
         File.WriteAllText(temp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
         File.Move(temp, PathName, true);
     }
+    internal TimelineCollectionOptions CollectionOptions => new() { RecordTimelineMetadata = RecordTimelineMetadata, KeyboardTimeline = KeyboardTimeline };
     internal string Shortcut => $"{((Modifiers & 2) != 0 ? "Ctrl + " : "")}{((Modifiers & 1) != 0 ? "Alt + " : "")}{((Modifiers & 4) != 0 ? "Shift + " : "")}{Key}";
 }
 
@@ -115,6 +117,8 @@ internal sealed class SettingsForm : Form
             modifiers = (uint)((e.Control ? 2 : 0) | (e.Alt ? 1 : 0) | (e.Shift ? 4 : 0)); shortcut = e.KeyCode;
             key.Text = new Settings { Modifiers = modifiers, Key = shortcut }.Shortcut;
         };
+        var metadata = new CheckBox { Text = "Record timeline metadata", Checked = settings.RecordTimelineMetadata, AutoSize = true };
+        var keyboard = new CheckBox { Text = "Keyboard events in timeline", Checked = settings.KeyboardTimeline, AutoSize = true };
         var clicks = new CheckBox { Text = "Highlight mouse clicks", Checked = settings.ClickHighlight, AutoSize = true };
         var copy = new CheckBox { Text = "Copy saved files to clipboard", Checked = settings.AutoCopy, AutoSize = true };
         var split = new CheckBox { Text = "Split recordings over 29 MB", Checked = settings.SplitAt29Mb, AutoSize = true };
@@ -126,6 +130,7 @@ internal sealed class SettingsForm : Form
         Wide(new Label { Text = "Compact keeps resolution and frame rate, but may soften small text and uses more CPU. Seeking can take longer. File size varies; uploads under 30 MB are not guaranteed.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
         Wide(new Label { Text = "5 fps is recommended for readable text and smaller files. Video only; no audio.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
         Row("Mouse clicks", clicks);
+        Row("Timeline metadata", metadata); Row("Keyboard timeline", keyboard);
         Section("Controls", "Click the tray icon or use your shortcut to arm, record, and save.");
         Row("Shortcut", key);
         Wide(new Label { Text = "Select the shortcut field, then press your preferred key combination.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
@@ -157,7 +162,7 @@ internal sealed class SettingsForm : Form
                 var proposed = new Settings { Mode = (CaptureMode)mode.SelectedIndex, WindowCanvas = (WindowCanvasMode)canvas.SelectedIndex, FrameRate = (int)fps.Value,
                     Compression = (CompressionMode)compression.SelectedIndex,
                     Folder = Path.GetFullPath(folder.Text), Modifiers = modifiers, Key = shortcut,
-                    ClickHighlight = clicks.Checked, AutoCopy = copy.Checked, SplitAt29Mb = split.Checked, DoubleEscape = escape.Checked };
+                    RecordTimelineMetadata = metadata.Checked, KeyboardTimeline = keyboard.Checked, ClickHighlight = clicks.Checked, AutoCopy = copy.Checked, SplitAt29Mb = split.Checked, DoubleEscape = escape.Checked };
                 apply(proposed); Close();
             }
             catch (Exception e) { MessageBox.Show(e.Message, "Could not save settings"); }
