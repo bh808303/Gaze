@@ -291,3 +291,6 @@ Approve this plan, including the proposed Start/shortcut and Gaze-control gestur
 
 ## Human plan approval
 On 2026-10-14 the user replied exactly "approve" after the plan summary and explicit request to approve this plan to start implementation. This authorizes local implementation and approved manifest checks, including capture/Claude Desktop feasibility gates and proposed Start/shortcut semantics. No merge, publishing or deployment authorized.
+
+## Human-approved validation adjustment
+On 2026-10-14 the human replied "agreed" to continuing single-monitor implementation/testing while deferring unavailable multi-monitor and mixed-DPI validation. Those unavailable checks and denied hardware/driver metadata queries are not prerequisites for implementation or completion of the current task. Run all feasible single-monitor behavioral capture checks and required automated checks; retain approved capture behavior, record unavailable scenarios as deferred/untested, and do not claim complete multi-monitor validation. Evidence records supersede the earlier T01 prerequisite-blocking interpretation. No weakening of feasible tests or implementation behavior is authorized.

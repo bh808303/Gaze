@@ -14,7 +14,8 @@
       "acceptanceCriteria": [
         "Create a bounded screenshot probe using existing Windows Graphics Capture for cursor-free full-window PNGs and visible-pixel rectangle capture; do not wire production controls.",
         "Record occluded-window freshness, starting-monitor clipping, mixed DPI and UI exclusion results with OS/hardware versions in docs/factory/evidence/capture.md.",
-        "Preserve process/batch on ordinary failures; if approved capture semantics cannot be met, stop the affected dependency chain and surface the limitation."
+        "Preserve process/batch on ordinary failures; if approved capture semantics cannot be met, stop the affected dependency chain and surface the limitation.",
+        "Human-approved validation adjustment: run feasible single-monitor behavioral/native checks and required automated checks. Multi-monitor/mixed-DPI desktop checks and unavailable hardware/driver metadata are deferred, not implementation/task-completion prerequisites. Record them explicitly as untested; preserve intended behavior and do not claim they passed."
       ],
       "testCommand": "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
       "dependsOn": []
@@ -101,7 +102,8 @@
       "acceptanceCriteria": [
         "Install session-scoped dedicated middle hook, keeping callbacks short and forwarding other input; release hooks on all session exit paths.",
         "Display clipped selection then remove selection/UI feedback before capture; add brief border flash after successful capture without sound; failed captures preserve prior batch.",
-        "Desktop checks cover different windows/monitors, drag across windows, left/double click/drag, keyboard/wheel, stale frames and hook teardown; record exclusion limitations."
+        "Desktop checks cover different windows/monitors, drag across windows, left/double click/drag, keyboard/wheel, stale frames and hook teardown; record exclusion limitations.",
+        "Human-approved validation adjustment: run feasible single-monitor behavioral/native checks and required automated checks. Multi-monitor/mixed-DPI desktop checks and unavailable hardware/driver metadata are deferred, not implementation/task-completion prerequisites. Record them explicitly as untested; preserve intended behavior and do not claim they passed."
       ],
       "testCommand": "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
       "dependsOn": [
@@ -145,7 +147,8 @@
       "acceptanceCriteria": [
         "Run integrated desktop matrix for occlusion, other-monitor window capture, starting-monitor rectangle clipping, mixed DPI, gestures, controls, Undo, feedback/exclusion and recoverable capture failure.",
         "Exercise empty finish, Cancel, close/quit choices and repeated start/stop; verify video Window/AllMonitors/CurrentMonitor and existing settings/export.",
-        "Record versions, exact scenarios, expected/actual outcomes and evidence paths in docs/factory/evidence/native-validation.md; unavailable paths remain untested and block claims of full acceptance."
+        "Record versions, exact scenarios, expected/actual outcomes and evidence paths in docs/factory/evidence/native-validation.md; unavailable paths remain untested and block claims of full acceptance.",
+        "Human-approved validation adjustment: run feasible single-monitor behavioral/native checks and required automated checks. Multi-monitor/mixed-DPI desktop checks and unavailable hardware/driver metadata are deferred, not implementation/task-completion prerequisites. Record them explicitly as untested; preserve intended behavior and do not claim they passed."
       ],
       "testCommand": "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
       "dependsOn": [
