@@ -197,7 +197,7 @@ internal sealed class TrayContext : ApplicationContext
             {
                 bool repeat = escHeld; escHeld = true;
                 if (!repeat && session.State == SessionState.Armed && !starting)
-                    Dispatch(() => { session.Reset(); escape.Reset(); overlay.Hide(); noticeUntil = TimeSpan.Zero; Menu(); });
+                    Dispatch(CancelArming);
                 else if (settings.DoubleEscape && session.State is SessionState.Recording or SessionState.Paused)
                 {
                     if (escape.Press(clock.Elapsed, repeat)) { Dispatch(Stop); return 1; }
@@ -228,7 +228,7 @@ internal sealed class TrayContext : ApplicationContext
     {
         panel ??= new TrayPanel(() => settings, ApplySettings,
             () => Guard(() => Shortcut(fromTray: true)),
-            () => Guard(() => { session.Reset(); escape.Reset(); noticeUntil = TimeSpan.Zero; overlay.Hide(); Menu(); }),
+            () => Guard(CancelArming),
             path => Guard(() => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true })),
             () => Guard(OpenFolder),
             path => Guard(() => { Capture.CopyFile(path); Notify("Copied", Path.GetFileName(path)); }),
@@ -238,15 +238,21 @@ internal sealed class TrayContext : ApplicationContext
         panel.OpenAt(Cursor.Position);
     }
     internal nint OpenPanelForValidation() { OpenPanel(); return panel!.Handle; }
+    private void CancelArming()
+    {
+        session.Reset(); escape.Reset(); noticeUntil = TimeSpan.Zero; overlay.Hide();
+        // Recreate the WPF surface after capture exclusion, just as after saving.
+        ResetPanel(); Menu();
+    }
     private void ResetPanel()
     {
         panel?.Dispose(); panel = null;
     }
     internal nint CyclePanelForValidation()
     {
-        panel!.RefreshState(SessionState.Armed, TimeSpan.Zero, false, false);
-        panel.RefreshState(SessionState.Idle, TimeSpan.Zero, false, false);
-        ResetPanel(); OpenPanel();
+        session.Arm(CaptureMode.AllMonitors, 0);
+        panel!.Hide(); Menu();
+        CancelArming(); OpenPanel();
         return panel!.Handle;
     }
     private void Cleanup()

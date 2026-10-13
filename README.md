@@ -76,7 +76,7 @@ Launch `artifacts/app/Gaze.App.exe`. The optional `Start-Gaze.ps1` launcher buil
 
 ## Alpha status and validation
 
-The alpha installer release includes the application, .NET desktop runtime, and a private FFmpeg encoder. WPF UI 4.3.0 provides the interface controls. The panel uses software rendering and is positioned while hidden to avoid blank windows and placement flashes. It is recreated after saving or a recording failure.
+The alpha installer release includes the application, .NET desktop runtime, and a private FFmpeg encoder. WPF UI 4.3.0 provides the interface controls. The panel uses software rendering and is positioned while hidden to avoid blank windows and placement flashes. It is recreated after saving, a recording failure, or cancelling an armed recording (Esc or Cancel) to discard the capture-excluded rendering surface. The next panel opening creates fresh controls.
 
 Core and split checks cover recording names, target locking, paused duration, saving state, Esc confirmation, size boundaries, frame ordering, collision handling, and original retention after failure. Run the real video split check with `dotnet run --project tests/Gaze.Tests -- --encoder <full-ffmpeg-path>`; it encodes a recording over 29 MB, splits it, and decodes every part to verify the total frame count and size limit. Local synthetic recording checks cover decoded video, dialog following, overlay exclusion, and clipboard copying. Desktop rendering checks cover panel placement and recreation. Local evidence, recordings, build outputs, and dependencies are excluded from Git.
 
