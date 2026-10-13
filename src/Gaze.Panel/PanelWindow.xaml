@@ -55,20 +55,20 @@
     </Grid>
     <ScrollViewer x:Name="SettingsPage" Style="{x:Null}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed" Padding="0,0,8,0">
      <StackPanel>
-      <TextBlock x:Name="Heading" Text="Settings" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12"/>
-      <Grid Margin="0,4,0,8"><TextBlock Text="Start at Windows sign-in" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="StartAtSignIn" HorizontalAlignment="Right" AutomationProperties.Name="Start at Windows sign-in"/></Grid>
-      <TextBlock Text="Save folder" Style="{StaticResource FieldLabel}" Margin="0,4,0,8"/>
+      <TextBlock x:Name="Heading" Text="Settings" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,5"/>
+      <Grid Margin="0,2,0,4"><TextBlock Text="Start at Windows sign-in" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="StartAtSignIn" HorizontalAlignment="Right" AutomationProperties.Name="Start at Windows sign-in"/></Grid>
+      <TextBlock Text="Save folder" Style="{StaticResource FieldLabel}" Margin="0,2,0,4"/>
       <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="96"/></Grid.ColumnDefinitions><ui:TextBox x:Name="Folder" Margin="0,0,8,0"/><ui:Button Grid.Column="1" Content="Browse" Click="BrowseClick" Width="96" Height="34" FontSize="12" Padding="4,0"/></Grid>
-      <Grid Margin="0,12,0,8"><TextBlock Text="Split recordings over 29 MB" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="SplitAt29Mb" HorizontalAlignment="Right" AutomationProperties.Name="Split recordings over 29 MB"/></Grid>
-      <Grid Margin="0,8,0,8"><TextBlock Text="Keyboard events in timeline" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="KeyboardTimeline" HorizontalAlignment="Right" AutomationProperties.Name="Keyboard events in timeline"/></Grid>
-      <TextBlock Text="CONTROLS" Style="{StaticResource Section}"/>
-      <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Shortcut" Style="{StaticResource FieldLabel}"/><ui:TextBox x:Name="Shortcut" Grid.Column="1" IsReadOnly="True" PreviewKeyDown="ShortcutKey" ToolTip="Select this field and press your preferred keys"/></Grid>
-      <Grid Margin="0,0,0,12"><TextBlock Text="Copy to clipboard" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="AutoCopy" HorizontalAlignment="Right"/></Grid>
-      <Grid Margin="0,0,0,12"><TextBlock Text="Highlight clicks" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="Clicks" HorizontalAlignment="Right"/></Grid>
-      <Grid Margin="0,0,0,12"><TextBlock Text="Double Esc to stop" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="DoubleEscape" HorizontalAlignment="Right"/></Grid>
-      <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Frames per second" Style="{StaticResource FieldLabel}"/><ui:NumberBox x:Name="Fps" Grid.Column="1" Minimum="1" Maximum="30"/></Grid>
-      <Grid Margin="0,0,0,18"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Window canvas" Style="{StaticResource FieldLabel}"/><ComboBox x:Name="Canvas" Grid.Column="1" Padding="10,7"><ComboBoxItem Content="Windows size"/><ComboBoxItem Content="Monitor size"/></ComboBox></Grid>
-      <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Compression" Style="{StaticResource FieldLabel}"/><ComboBox x:Name="Compression" Grid.Column="1" Padding="10,7" AutomationProperties.Name="Compression"><ComboBoxItem Content="Original — sharper image"/><ComboBoxItem Content="Compact — smaller file"/></ComboBox></Grid>
+      <Grid Margin="0,6,0,4"><TextBlock Text="Split recordings over 29 MB" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="SplitAt29Mb" HorizontalAlignment="Right" AutomationProperties.Name="Split recordings over 29 MB"/></Grid>
+      <Grid Margin="0,4,0,4"><TextBlock Text="Keyboard events in timeline" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="KeyboardTimeline" HorizontalAlignment="Right" AutomationProperties.Name="Keyboard events in timeline"/></Grid>
+      <TextBlock Text="CONTROLS" Style="{StaticResource Section}" Margin="0,8,0,6"/>
+      <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Shortcut" Style="{StaticResource FieldLabel}"/><ui:TextBox x:Name="Shortcut" Grid.Column="1" IsReadOnly="True" PreviewKeyDown="ShortcutKey" ToolTip="Select this field and press your preferred keys"/></Grid>
+      <Grid Margin="0,0,0,5"><TextBlock Text="Copy to clipboard" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="AutoCopy" HorizontalAlignment="Right"/></Grid>
+      <Grid Margin="0,0,0,5"><TextBlock Text="Highlight clicks" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="Clicks" HorizontalAlignment="Right"/></Grid>
+      <Grid Margin="0,0,0,5"><TextBlock Text="Double Esc to stop" Style="{StaticResource FieldLabel}"/><ui:ToggleSwitch x:Name="DoubleEscape" HorizontalAlignment="Right"/></Grid>
+      <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Frames per second" Style="{StaticResource FieldLabel}"/><ui:NumberBox x:Name="Fps" Grid.Column="1" Minimum="1" Maximum="30"/></Grid>
+      <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Window canvas" Style="{StaticResource FieldLabel}"/><ComboBox x:Name="Canvas" Grid.Column="1" Padding="10,7"><ComboBoxItem Content="Windows size"/><ComboBoxItem Content="Monitor size"/></ComboBox></Grid>
+      <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="Compression" Style="{StaticResource FieldLabel}"/><ComboBox x:Name="Compression" Grid.Column="1" Padding="10,7" AutomationProperties.Name="Compression"><ComboBoxItem Content="Original — sharper image"/><ComboBoxItem Content="Compact — smaller file"/></ComboBox></Grid>
      </StackPanel>
     </ScrollViewer>
    </Grid>
