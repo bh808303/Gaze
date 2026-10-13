@@ -1,0 +1,15 @@
+{
+ "completedTaskIds": [],
+ "checks": [
+  "dotnet build src/Gaze.App -c Release -p:Platform=x64 -p:UseSharedCompilation=false; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+  "dotnet run --project tests/Gaze.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+  "git diff --check; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+ ],
+ "tasks": [{
+  "id": "sign-in-startup",
+  "description": "Implement configurable current-user Windows sign-in startup in Gaze Settings following docs/factory/spec.md. Use existing architecture. Keep tests isolated from real Windows startup configuration. Update README and CHANGELOG.",
+  "acceptanceCriteria": ["All acceptance criteria in docs/factory/spec.md are satisfied", "App builds and existing tests pass", "Meaningful red-green startup tests and exact evidence are recorded"],
+  "testCommand": "dotnet run --project tests/Gaze.Tests",
+  "dependsOn": []
+ }]
+}
