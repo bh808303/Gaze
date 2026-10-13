@@ -8,7 +8,7 @@ The recording format is designed to keep files as small as practical while prese
 
 - Left-click the tray icon: arm → start recording → stop and save.
 - Right-click: open the recording panel and Settings.
-- The panel always aligns with the bottom-right corner of the working area on the monitor containing the pointer when opened, keeping clear of the taskbar. Its size is limited to that working area.
+- The panel always aligns with the bottom-right corner of the working area on the monitor containing the pointer when opened, keeping clear of the taskbar. Its size is limited to that working area. Drag the logo header to move either the main panel or Settings; header buttons remain clickable. After dragging, switching between pages keeps the manually chosen position. Reopening from the tray restores the bottom-right placement.
 - Default shortcut: Ctrl + Alt + PrintScreen; configurable in Settings.
 - Press Esc twice within one second to stop. The first press remains available to the application being recorded.
 

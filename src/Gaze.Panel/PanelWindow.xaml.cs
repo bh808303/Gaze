@@ -28,6 +28,7 @@ public partial class PanelWindow : FluentWindow
         EnsureHostApplication();
         Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(Color.FromRgb(37, 99, 235), Wpf.Ui.Appearance.ApplicationTheme.Light, false);
         InitializeComponent();
+        Fps.ItemsSource = Enumerable.Range(1, 30);
         System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(this);
         Loaded += (_, _) => { if (editing) EditSettings(); };
         updating = true; Mode.ItemsSource = new[] { "Selected window", "All monitors", "Main monitor" }; Mode.SelectedIndex = (int)getOptions().Mode; updating = false;
@@ -57,7 +58,7 @@ public partial class PanelWindow : FluentWindow
         {
             var directory = getOptions().Folder;
             var files = Directory.Exists(directory) ? new DirectoryInfo(directory).GetFiles("*.mp4").OrderByDescending(f => f.LastWriteTimeUtc).Select(f => new Recording(f.FullName, f.Name, $"{f.LastWriteTime:dd MMM yyyy · HH:mm}   ·   {f.Length / 1048576.0:0.0} MB")).ToArray() : [];
-            Recordings.ItemsSource = files; FileCount.Text = files.Length.ToString(); EmptyList.Visibility = files.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            Recordings.ItemsSource = files; FileCount.Text = $"({files.Length})"; EmptyList.Visibility = files.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
             Recordings.SelectedItem = files.FirstOrDefault(f => f.Path == selected) ?? files.FirstOrDefault();
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { EmptyList.Text = error.Message; EmptyList.Visibility = Visibility.Visible; Recordings.ItemsSource = null; }
@@ -93,7 +94,7 @@ public partial class PanelWindow : FluentWindow
         var options = getOptions(); Folder.Text = options.Folder; Shortcut.Text = options.ShortcutText; modifiers = options.Modifiers; key = options.Key;
         AutoCopy.IsChecked = false; Clicks.IsChecked = false; DoubleEscape.IsChecked = false;
         AutoCopy.IsChecked = options.AutoCopy; Clicks.IsChecked = options.ClickHighlight; DoubleEscape.IsChecked = options.DoubleEscape;
-        Fps.Value = options.FrameRate; Canvas.SelectedIndex = (int)options.Canvas; Canvas.IsEnabled = options.Mode == CaptureMode.Window;
+        Fps.SelectedItem = options.FrameRate; Canvas.SelectedIndex = (int)options.Canvas; Canvas.IsEnabled = options.Mode == CaptureMode.Window;
         Compression.SelectedIndex = (int)options.Compression;
         SplitAt29Mb.IsChecked = false; SplitAt29Mb.IsChecked = options.SplitAt29Mb;
         KeyboardTimeline.IsChecked = options.KeyboardTimeline;
@@ -157,6 +158,13 @@ public partial class PanelWindow : FluentWindow
         var bitmap = new RenderTargetBitmap((int)Width, (int)Height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(content);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap)); using var output = File.Create(path); encoder.Save(output);
     }
+    public event Action? DragStarted;
+    private void HeaderDrag(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left) return;
+        DragStarted?.Invoke();
+        DragMove();
+    }
     private void GearClick(object sender, RoutedEventArgs e)
     {
         try { if (editing) Home(); else EditSettings(); }
@@ -197,8 +205,8 @@ public partial class PanelWindow : FluentWindow
         try
         {
             if (modifiers == 0 || key is 27 or 123) throw new InvalidOperationException("Use a modified shortcut other than Esc or F12.");
-            var fps = Fps.Value ?? double.NaN;
-            if (fps < 1 || fps > 30 || double.IsNaN(fps) || fps != Math.Truncate(fps)) throw new InvalidOperationException("Frames per second must be a whole number from 1 to 30.");
+            var fps = Fps.SelectedItem is int selectedFps ? selectedFps : 0;
+            if (fps < 1 || fps > 30) throw new InvalidOperationException("Frames per second must be a whole number from 1 to 30.");
             var options = getOptions(); options.Folder = Path.GetFullPath(Folder.Text); options.Modifiers = modifiers; options.Key = key; options.FrameRate = (int)fps;
             options.AutoCopy = AutoCopy.IsChecked == true; options.ClickHighlight = Clicks.IsChecked == true; options.DoubleEscape = DoubleEscape.IsChecked == true; options.Canvas = (WindowCanvasMode)Canvas.SelectedIndex;
             if (Compression.SelectedIndex < 0) throw new InvalidOperationException("Choose a compression mode.");
