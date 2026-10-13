@@ -81,6 +81,6 @@ internal static class RecordingSplitter
 
     internal static async Task EncodeAsync(string source, string output, int first, int count, string encoder, int fps, CompressionMode compression)
     {
-        await RecordingMetadata.RunAsync(encoder, new[] { "-hide_banner", "-loglevel", "error", "-nostdin", "-i", source, "-map", "0:v:0", "-map_metadata", "-1", "-map_chapters", "-1", "-an", "-vf", $"trim=start_frame={first}:end_frame={first + count},setpts=PTS-STARTPTS", "-frames:v", count.ToString(), "-r", fps.ToString(), "-fps_mode", "cfr", "-c:v", "libx264", "-preset", compression == CompressionMode.Compact ? "medium" : "veryfast", "-crf", compression == CompressionMode.Compact ? "24" : "18", "-pix_fmt", "yuv420p", "-g", (fps * (compression == CompressionMode.Compact ? 10 : 2)).ToString(), "-movflags", "+faststart", "-f", "mp4", output });
+        await RecordingMetadata.RunAsync(encoder, new[] { "-hide_banner", "-loglevel", "error", "-nostdin", "-i", source, "-map", "0:v:0", "-map_metadata", "-1", "-map_chapters", "-1", "-an", "-vf", $"trim=start_frame={first}:end_frame={first + count},setpts=PTS-STARTPTS", "-frames:v", count.ToString(), "-r", fps.ToString(), "-fps_mode", "cfr", "-c:v", "libx264", "-preset", compression == CompressionMode.Compact ? "medium" : "veryfast", "-crf", compression == CompressionMode.Compact ? "24" : "18", "-pix_fmt", "yuv420p", "-g", (fps * (compression == CompressionMode.Compact || CompressionPrototype.Enabled ? 10 : 2)).ToString(), "-movflags", "+faststart", "-f", "mp4", output });
     }
 }

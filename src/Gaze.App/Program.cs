@@ -5,6 +5,7 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        CompressionPrototype.Enabled = args.Contains("--prototype-original-long-gop");
         ApplicationConfiguration.Initialize();
         if (args.Contains("--tray-startup-check"))
         {

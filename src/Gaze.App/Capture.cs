@@ -114,7 +114,7 @@ internal sealed class Capture : IDisposable
                 await Task.Delay(25, token);
             }
             var start = new ProcessStartInfo(EncoderPath()) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardError = true };
-            foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pixel_format", "bgra", "-video_size", $"{Canvas.Width}x{Canvas.Height}", "-framerate", fps.ToString(), "-i", "pipe:0", "-an", "-c:v", "libx264", "-preset", compression == CompressionMode.Compact ? "medium" : "veryfast", "-crf", compression == CompressionMode.Compact ? "24" : "18", "-pix_fmt", "yuv420p", "-g", (fps * (compression == CompressionMode.Compact ? 10 : 2)).ToString(), "-movflags", "+frag_keyframe+empty_moov+default_base_moof", "-f", "mp4", partial }) start.ArgumentList.Add(arg);
+            foreach (var arg in new[] { "-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pixel_format", "bgra", "-video_size", $"{Canvas.Width}x{Canvas.Height}", "-framerate", fps.ToString(), "-i", "pipe:0", "-an", "-c:v", "libx264", "-preset", compression == CompressionMode.Compact ? "medium" : "veryfast", "-crf", compression == CompressionMode.Compact ? "24" : "18", "-pix_fmt", "yuv420p", "-g", (fps * (compression == CompressionMode.Compact || CompressionPrototype.Enabled ? 10 : 2)).ToString(), "-movflags", "+frag_keyframe+empty_moov+default_base_moof", "-f", "mp4", partial }) start.ArgumentList.Add(arg);
             encoder = Process.Start(start) ?? throw new InvalidOperationException("Could not start FFmpeg.");
             var recordingStart = DateTime.Now;
             var stderr = encoder.StandardError.ReadToEndAsync(); StatusChanged?.Invoke(RecorderStatus.Recording);

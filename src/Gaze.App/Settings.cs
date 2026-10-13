@@ -19,7 +19,7 @@ internal sealed class Settings
     public uint Modifiers { get; set; } = 3;
     public Keys Key { get; set; } = Keys.PrintScreen;
     public string Folder { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Gaze");
-    private static string PathName => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Gaze", "settings.json");
+    private static string PathName => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), CompressionPrototype.Enabled ? "Gaze-Prototype-LongGop" : "Gaze", "settings.json");
     internal static Settings Load()
     {
         if (!File.Exists(PathName)) return new();
