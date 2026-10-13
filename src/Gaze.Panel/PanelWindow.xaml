@@ -28,8 +28,8 @@
      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
      <Border Background="White" BorderBrush="#E4E7EC" BorderThickness="1" CornerRadius="10" Padding="16">
       <StackPanel>
-       <DockPanel Margin="0,0,0,14"><TextBlock x:Name="Status" Text="● Ready" Foreground="#15803D" FontWeight="SemiBold"/><TextBlock x:Name="Duration" Text="00:00:00" HorizontalAlignment="Right" Foreground="#667085"/></DockPanel>
        <ui:Button x:Name="MainAction" Content="Arm recording" Appearance="Primary" Background="#B50F21" BorderBrush="#B50F21" Foreground="White" HorizontalAlignment="Stretch" Height="42" Click="MainClick"/>
+       <DockPanel Margin="0,14,0,0"><TextBlock x:Name="Status" Text="● Ready" Foreground="#15803D" FontWeight="SemiBold"/><TextBlock x:Name="Duration" Text="00:00:00" HorizontalAlignment="Right" Foreground="#667085"/></DockPanel>
        <ui:Button x:Name="CancelArm" Content="Cancel arming" Appearance="Transparent" HorizontalAlignment="Center" Margin="0,6,0,0" Click="CancelClick" Visibility="Collapsed"/>
       </StackPanel>
      </Border>
