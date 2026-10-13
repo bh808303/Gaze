@@ -2,6 +2,7 @@ using Gaze.Core;
 namespace Gaze.Fluent;
 public sealed class PanelOptions
 {
+    public bool? StartAtSignIn { get; set; }
     public CaptureMode Mode { get; set; }
     public WindowCanvasMode Canvas { get; set; }
     public int FrameRate { get; set; } = 5;

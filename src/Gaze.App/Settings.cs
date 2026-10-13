@@ -5,6 +5,8 @@ namespace Gaze.App;
 
 internal sealed class Settings
 {
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool? StartAtSignIn { get; set; }
     public CaptureMode Mode { get; set; }
     public WindowCanvasMode WindowCanvas { get; set; } = WindowCanvasMode.OriginalWindow;
     public int FrameRate { get; set; } = 5;

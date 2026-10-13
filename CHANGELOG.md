@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 2026-10-13
+
+- Add Start at Windows sign-in in Settings, defaulting off unless Gaze is registered. Read actual current-user registration, quote executable paths, remove only Gaze on disable, and report failures. Preserve silent tray startup without automatic recording.
+- Re-save the enabled switch after moving a portable executable to repair its path. Reject dotnet development-host registration. Add isolated startup tests; actual Windows sign-in execution remains unverified.
+
 ## 0.4.0-alpha installer — 2026-10-11
 
 - Add off-by-default Keyboard events in timeline to the WPF settings. Record individual key-down/up events, repeats, virtual/scan codes and original timestamps only within the capture boundary; ignore paused input and retain resume-gap keys in split parts. Keep the keyboard hook queue-only.

@@ -26,6 +26,10 @@ Settings → Saving → Split recordings over 29 MB is off by default. When enab
 
 Automatic clipboard copying places a file reference on the clipboard. Open, Open Folder, Copy Clipboard, and Clean-up are available in the panel. Clean-up asks for confirmation and moves MP4 files directly in the recording folder to the Recycle Bin; subfolders and unfinished working files are retained.
 
+Settings → **Start at Windows sign-in** registers Gaze for the current user only, without elevation, using the quoted absolute executable path in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (value `Gaze`). It defaults off unless that entry already exists. Settings reads the actual Windows registration each time it opens; Save applies the switch and reports registration failures. Cancel leaves startup unchanged. Disabling removes only Gaze's value. Startup opens silently in the tray and never starts recording automatically. Windows policy or Startup Apps controls can prevent a registered app from launching.
+
+For portable builds, moving or removing the executable invalidates the registered path. Open the app at its new location and save Settings with the switch enabled again to repair it. Development launches through `dotnet.exe` cannot enable startup; launch `Gaze.App.exe` instead. Registration checks use an injected in-memory boundary and do not change Windows startup configuration; an actual Windows sign-in has not been exercised by these tests.
+
 Interrupted-recording recovery is not supported. Normal startup is silent. The idle panel can be captured by screenshot tools; it is excluded while armed, recording, or saving on supported Windows versions.
 
 The tray panel's split toggle appears directly below Save folder. Its value is loaded and saved through the same persistent settings as recording and is retained when changing other panel settings.
@@ -80,7 +84,7 @@ To verify the minimal bundled encoder, add `--split-encoder .tools/encoder-build
 
 Append `--metadata-tests .tools/encoder-build/output/ffmpeg.exe .tools/encoder-build/output/ffprobe.exe` for compressed-video packet equality, chapters, title escaping, disabled subtitle disposition, graceful metadata failure, and size checks after metadata pushes a video over the limit. Set `GAZE_TEST_PYTHON` if Python is not on PATH. The synthetic `--self-test --event-check --no-click-highlight --no-overlay --evidence <directory>` check captures only its own test window and verifies five rapid clicks, title changes, chapters, pause/resume anchors, timeline extraction, and clipboard saving. It moves/restores the pointer to inject test clicks into the fixture and requires Windows capture permission.
 
-Broader GPU/DPI/multiple-monitor validation, browser-spawn attribution, and Windows sign-in startup remain outside this alpha's guarantees. The Gaze recorder does not perform AI analysis itself; the optional Claude skill above provides that workflow separately.
+Broader GPU/DPI/multiple-monitor validation, browser-spawn attribution, and actual Windows sign-in execution remain outside this alpha's guarantees. The Gaze recorder does not perform AI analysis itself; the optional Claude skill above provides that workflow separately.
 
 See [CHANGELOG.md](CHANGELOG.md) and [requirements](docs/requirements.md).
 

@@ -1,6 +1,7 @@
 using Gaze.Core;
 
 var failures = 0;
+StartupChecks.Run(Test);
 Test("Mouse producers keep queuing while the drawing consumer is blocked, preserving order and clock times", () =>
 {
     var queue = new Gaze.App.ClickQueue();

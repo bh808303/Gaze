@@ -15,13 +15,15 @@ public partial class PanelWindow : FluentWindow
 {
     private readonly Func<PanelOptions> getOptions;
     private readonly Action<PanelOptions> apply;
+    private readonly Func<bool> readSignInStartup;
     private readonly Action action, cancel, folder, quit, cleanup;
     private readonly Action<string> open, copy;
     private bool editing, updating, idle = true, disposing;
     private uint modifiers; private int key;
     public sealed record Recording(string Path, string Name, string Details);
-    public PanelWindow(Func<PanelOptions> getOptions, Action<PanelOptions> apply, Action action, Action cancel, Action<string> open, Action folder, Action<string> copy, Action quit, Action cleanup)
+    public PanelWindow(Func<PanelOptions> getOptions, Action<PanelOptions> apply, Action action, Action cancel, Action<string> open, Action folder, Action<string> copy, Action quit, Action cleanup, Func<bool>? readSignInStartup = null)
     {
+        this.readSignInStartup = readSignInStartup ?? (() => false);
         this.getOptions = getOptions; this.apply = apply; this.action = action; this.cancel = cancel; this.open = open; this.folder = folder; this.copy = copy; this.quit = quit; this.cleanup = cleanup;
         EnsureHostApplication();
         Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(Color.FromRgb(37, 99, 235), Wpf.Ui.Appearance.ApplicationTheme.Light, false);
@@ -82,6 +84,7 @@ public partial class PanelWindow : FluentWindow
     public void EditSettings()
     {
         if (!idle) return;
+        var startupEnabled = readSignInStartup();
         editing = true; Heading.Text = "Settings"; GearIcon.Symbol = SymbolRegular.ArrowLeft24;
         FooterRow.Height = new GridLength(44);
         HomePage.Visibility = HomeFooter.Visibility = Visibility.Collapsed; SettingsPage.Visibility = SettingsFooter.Visibility = Visibility.Visible;
@@ -92,6 +95,7 @@ public partial class PanelWindow : FluentWindow
         Compression.SelectedIndex = (int)options.Compression;
         SplitAt29Mb.IsChecked = false; SplitAt29Mb.IsChecked = options.SplitAt29Mb;
         KeyboardTimeline.IsChecked = options.KeyboardTimeline;
+        StartAtSignIn.IsChecked = startupEnabled;
     }
     public void RunPreview(string path)
     {
@@ -151,7 +155,11 @@ public partial class PanelWindow : FluentWindow
         var bitmap = new RenderTargetBitmap((int)Width, (int)Height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(content);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap)); using var output = File.Create(path); encoder.Save(output);
     }
-    private void GearClick(object sender, RoutedEventArgs e) { if (editing) Home(); else EditSettings(); }
+    private void GearClick(object sender, RoutedEventArgs e)
+    {
+        try { if (editing) Home(); else EditSettings(); }
+        catch (Exception error) { System.Windows.MessageBox.Show(this, error.Message, "Could not read Windows sign-in startup"); }
+    }
     private void DismissClick(object sender, RoutedEventArgs e) { Hide(); Home(); }
     private void MainClick(object sender, RoutedEventArgs e) { Hide(); action(); }
     private void CancelClick(object sender, RoutedEventArgs e) => cancel();
@@ -195,6 +203,7 @@ public partial class PanelWindow : FluentWindow
             options.Compression = (CompressionMode)Compression.SelectedIndex;
             options.SplitAt29Mb = SplitAt29Mb.IsChecked == true;
             options.KeyboardTimeline = KeyboardTimeline.IsChecked == true;
+            options.StartAtSignIn = StartAtSignIn.IsChecked == true;
             apply(options); Home();
         }
         catch (Exception error) { System.Windows.MessageBox.Show(this, error.Message, "Could not save settings"); }

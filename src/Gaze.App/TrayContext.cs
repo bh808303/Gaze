@@ -221,7 +221,7 @@ internal sealed class TrayContext : ApplicationContext
     private void ApplySettings(Settings proposed)
     {
         Native.UnregisterHotKey(messages.Handle, 1);
-        try { RegisterShortcut(proposed); proposed.Save(); settings = proposed; Menu(); }
+        try { RegisterShortcut(proposed); if (proposed.StartAtSignIn is bool startupEnabled) WindowsSignInStartup.Create().SetEnabled(startupEnabled); proposed.Save(); settings = proposed; Menu(); }
         catch { Native.UnregisterHotKey(messages.Handle, 1); RegisterShortcut(settings); throw; }
     }
     private void OpenPanel()
