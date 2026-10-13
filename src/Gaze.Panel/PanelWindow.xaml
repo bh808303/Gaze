@@ -33,10 +33,10 @@
        <ui:Button x:Name="CancelArm" Content="Cancel arming" Appearance="Transparent" HorizontalAlignment="Center" Margin="0,6,0,0" Click="CancelClick" Visibility="Collapsed"/>
       </StackPanel>
      </Border>
-     <StackPanel Grid.Row="1"><TextBlock Text="CAPTURE" Style="{StaticResource Section}"/><ComboBox x:Name="Mode" SelectionChanged="ModeChanged" Padding="10,7"/></StackPanel>
+     <Grid Grid.Row="1" Margin="0,16,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBlock Text="CAPTURE" Style="{StaticResource Section}" Margin="0" VerticalAlignment="Center"/><ComboBox x:Name="Mode" Grid.Column="1" SelectionChanged="ModeChanged" Padding="10,7" AutomationProperties.Name="Capture mode"/></Grid>
      <DockPanel Grid.Row="2"><TextBlock Text="RECORDINGS" Style="{StaticResource Section}"/><TextBlock x:Name="FileCount" Foreground="#98A2B3" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,12,0,0"/></DockPanel>
      <Border Grid.Row="3" Background="White" BorderBrush="#E4E7EC" BorderThickness="1" CornerRadius="10" Padding="6">
-      <Grid><TextBlock x:Name="EmptyList" Text="No recordings in your save folder" Foreground="#98A2B3" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      <Grid><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid><TextBlock x:Name="EmptyList" Text="No recordings in your save folder" Foreground="#98A2B3" HorizontalAlignment="Center" VerticalAlignment="Center"/>
        <ListBox x:Name="Recordings" BorderThickness="0" Background="Transparent" SelectionChanged="SelectedRecordingChanged" MouseDoubleClick="RecordingDoubleClick" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
         <ListBox.ItemContainerStyle>
          <Style TargetType="ListBoxItem">
@@ -50,6 +50,12 @@
         </ListBox.ItemContainerStyle>
         <ListBox.ItemTemplate><DataTemplate><Grid Margin="5,7"><Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><ui:SymbolIcon Symbol="Video24" Foreground="#667085" FontSize="18" VerticalAlignment="Center"/><StackPanel Grid.Column="1"><TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/><TextBlock Text="{Binding Details}" Foreground="#98A2B3" FontSize="11" Margin="0,3,0,0"/></StackPanel></Grid></DataTemplate></ListBox.ItemTemplate>
        </ListBox>
+      </Grid><Border Grid.Row="1" BorderBrush="#E4E7EC" BorderThickness="0,1,0,0" Padding="4,10,4,4" Margin="0,6,0,0"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <ui:Button x:Name="OpenFile" Content="Open" Click="OpenClick" HorizontalAlignment="Stretch" Height="34" FontSize="12" Padding="4,0" Margin="0,0,6,0"/>
+     <ui:Button Grid.Column="1" Content="Open Folder" Click="FolderClick" HorizontalAlignment="Stretch" Height="34" FontSize="12" Padding="4,0" Margin="0,0,6,0"/>
+     <ui:Button x:Name="CopyFile" Grid.Column="2" Content="Copy Clipboard" Click="CopyClick" HorizontalAlignment="Stretch" Height="34" FontSize="12" Padding="4,0" Margin="0,0,6,0"/>
+     <ui:Button x:Name="Cleanup" Grid.Column="3" Content="Clean-up" Click="CleanupClick" Foreground="#B42318" HorizontalAlignment="Stretch" Height="34" FontSize="12" Padding="4,0" Margin="0,0,6,0"/>
+      </Grid></Border>
       </Grid>
      </Border>
     </Grid>
@@ -70,10 +76,6 @@
    </Grid>
    <Grid Grid.Row="2" Margin="0,16,0,0">
     <Grid x:Name="HomeFooter"><Grid.RowDefinitions><RowDefinition Height="34"/><RowDefinition Height="44"/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-     <ui:Button x:Name="OpenFile" Content="Open" Click="OpenClick" HorizontalAlignment="Stretch" Height="34" FontSize="12" Padding="4,0" Margin="0,0,6,0"/>
-     <ui:Button Grid.Column="1" Content="Open Folder" Click="FolderClick" HorizontalAlignment="Stretch" Height="34" FontSize="12" Padding="4,0" Margin="0,0,6,0"/>
-     <ui:Button x:Name="CopyFile" Grid.Column="2" Content="Copy Clipboard" Click="CopyClick" HorizontalAlignment="Stretch" Height="34" FontSize="12" Padding="4,0" Margin="0,0,6,0"/>
-     <ui:Button x:Name="Cleanup" Grid.Column="3" Content="Clean-up" Click="CleanupClick" Foreground="#B42318" HorizontalAlignment="Stretch" Height="34" FontSize="12" Padding="4,0" Margin="0,0,6,0"/>
      <ui:Button Grid.Row="1" Grid.Column="3" Content="Quit" Click="QuitClick" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Height="34" FontSize="12" Padding="4,0" Margin="0,0,6,0"/>
     </Grid>
     <StackPanel x:Name="SettingsFooter" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Visibility="Collapsed"><ui:Button Content="Cancel" Click="CancelSettingsClick" Width="96" Height="34" FontSize="12" Padding="4,0" Margin="0,0,8,0"/><ui:Button Content="Save" Appearance="Primary" Click="SaveClick" Width="96" Height="34" FontSize="12" Padding="4,0"/></StackPanel>
