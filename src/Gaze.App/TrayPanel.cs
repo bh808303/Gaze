@@ -5,6 +5,7 @@ internal sealed class TrayPanel : IDisposable, IWin32Window
 {
     private readonly PanelWindow window;
     private uint displayAffinity;
+    private Point? placementAnchor;
     public nint Handle => window.NativeHandle;
     internal TrayPanel(Func<Settings> getSettings, Action<Settings> apply, Action action, Action cancel, Action<string> open, Action folder, Action<string> copy, Action quit, Action cleanup)
     {
@@ -12,6 +13,7 @@ internal sealed class TrayPanel : IDisposable, IWin32Window
         {
             var value = getSettings(); return new PanelOptions { Mode = value.Mode, Canvas = value.WindowCanvas, Folder = value.Folder, FrameRate = value.FrameRate, Compression = value.Compression, Modifiers = value.Modifiers, Key = (int)value.Key, ShortcutText = value.Shortcut, AutoCopy = value.AutoCopy, SplitAt29Mb = value.SplitAt29Mb, KeyboardTimeline = value.KeyboardTimeline, ClickHighlight = value.ClickHighlight, DoubleEscape = value.DoubleEscape };
         }, options => apply(new Settings { StartAtSignIn = options.StartAtSignIn, Mode = options.Mode, WindowCanvas = options.Canvas, Folder = options.Folder, FrameRate = options.FrameRate, Compression = options.Compression, Modifiers = options.Modifiers, Key = (Keys)options.Key, AutoCopy = options.AutoCopy, SplitAt29Mb = options.SplitAt29Mb, KeyboardTimeline = options.KeyboardTimeline, ClickHighlight = options.ClickHighlight, DoubleEscape = options.DoubleEscape }), action, cancel, open, folder, copy, quit, cleanup, () => WindowsSignInStartup.Create().IsEnabled);
+        window.SizeChanged += (_, _) => { if (window.IsVisible) PanelWindow.QueueOnHost(AlignToWorkingArea); };
         Native.SetWindowDisplayAffinity(Handle, 0);
     }
     internal void RefreshState(SessionState state, TimeSpan duration, bool busy, bool hasFile)
@@ -69,8 +71,16 @@ internal sealed class TrayPanel : IDisposable, IWin32Window
         };
         OpenNext(); timer.Start(); PanelWindow.RunHostDispatcher();
     }
+    private void AlignToWorkingArea()
+    {
+        if (placementAnchor is not { } anchor || !window.IsVisible) return;
+        var area = Screen.FromPoint(anchor).WorkingArea;
+        var bounds = Native.WindowBounds(Handle);
+        Native.SetWindowPos(Handle, 0, area.Right - bounds.Width, area.Bottom - bounds.Height, 0, 0, 0x15);
+    }
     internal void OpenAt(Point anchor)
     {
+        placementAnchor = anchor;
         var area = Screen.FromPoint(anchor).WorkingArea;
         window.Hide();
         window.RefreshRecordings();

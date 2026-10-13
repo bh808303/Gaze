@@ -77,7 +77,8 @@ public partial class PanelWindow : FluentWindow
     public void Home()
     {
         editing = false; Heading.Text = "Gaze"; GearIcon.Symbol = SymbolRegular.Settings24;
-        FooterRow.Height = new GridLength(100);
+        Height = 540; PanelFrame.Height = 635.2941176;
+        FooterRow.Height = new GridLength(61.7647);
         HomePage.Visibility = HomeFooter.Visibility = Visibility.Visible; SettingsPage.Visibility = SettingsFooter.Visibility = Visibility.Collapsed;
         updating = true; Mode.SelectedIndex = (int)getOptions().Mode; updating = false; RefreshRecordings();
     }
@@ -85,8 +86,9 @@ public partial class PanelWindow : FluentWindow
     {
         if (!idle) return;
         var startupEnabled = readSignInStartup();
+        Height = 540; PanelFrame.Height = 635.2941176;
         editing = true; Heading.Text = "Settings"; GearIcon.Symbol = SymbolRegular.ArrowLeft24;
-        FooterRow.Height = new GridLength(44);
+        FooterRow.Height = new GridLength(55.7647);
         HomePage.Visibility = HomeFooter.Visibility = Visibility.Collapsed; SettingsPage.Visibility = SettingsFooter.Visibility = Visibility.Visible;
         var options = getOptions(); Folder.Text = options.Folder; Shortcut.Text = options.ShortcutText; modifiers = options.Modifiers; key = options.Key;
         AutoCopy.IsChecked = false; Clicks.IsChecked = false; DoubleEscape.IsChecked = false;
