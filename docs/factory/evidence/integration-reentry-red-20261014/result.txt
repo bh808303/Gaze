@@ -1,0 +1,11 @@
+OS: Microsoft Windows NT 10.0.26300.0; runtime: 10.0.11; monitors: 1
+PASS ordinary left-click and wheel reach target during capture session
+PASS actual native middle-click produces one retained window capture
+PASS actual native middle-drag produces a second retained rectangle
+PASS rectangle PNG decodes to selected 70x45 pixels without red selection/feedback at center
+PASS Undo retains first window capture
+Session completed, exported=True
+PASS Finish closes session, produces ordered ZIP with decodable fixture PNG and instructions, no MP4
+PASS middle-button consumed during session and restored to target after Finish
+FAIL: System.Exception: Export reentry guard failed
+   at Gaze.App.TranscribeIntegrationProbe.<>c__DisplayClass2_0.<<Run>g__Check|2>d.MoveNext() in C:\Users\BH808\OneDrive\Documents\Codex\Projects\Software Factory\Gaze-transcribe\src\Gaze.App\TranscribeIntegrationProbe.cs:line 114

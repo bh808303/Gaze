@@ -1,0 +1,9 @@
+# T03 lifecycle continuation — 2026-10-14
+
+Added TranscribeSession and TranscribeChecks. AC06/10/13/14: immutable retained bytes/title/monotonic sequence, latest-only Undo, empty finish, discard, keep capturing, export failure retention, retry ordering and synchronous reentry guards. Capture adapters validate usable geometry/PNG encoding before adding; failed captures do not call AddCapture. UI-thread confinement is required. Export callback returns after publication/save or throws. Done/Stop/Retry share Finish; close/quit only proceeds on true from RequestClose. Cancel uses Discard. Keep capturing explicitly reopens a failed batch for editing. Native dialogs/controller wiring are later tasks.
+
+RED: dotnet run --project tests/Gaze.Tests -p:UseSharedCompilation=false -p:BuildInParallel=false -m:1, exit 1: three lifecycle checks failed against compilable NotImplementedException placeholders before implementation.
+
+GREEN: same command exit 0, all 44 checks passed. Debug and Release app builds passed with zero warnings/errors after serial restore/build using --disable-parallel, -p:BuildInParallel=false -p:UseSharedCompilation=false -m:1; outputs artifacts/transcribe-lifecycle-debug and artifacts/transcribe-lifecycle-release. Settings harness passed. git diff --check passed. Required Build.ps1 invocation exited 1 during restore; serial equivalents passed, but do not count as exact script success. Python regression unavailable: py.exe Store alias could not execute. No T03 completion recorded pending remaining gates/review.
+
+Existing T02 clipboard changes preserved. Human reports previous Claude paste failed; earlier chat confirms the temporary-file replacement had not yet been launched. Original virtual ZIP failure is not proof that replacement file-drop fails. T02 remains open pending actual attachment and ingestion checks. No Claude message sent.

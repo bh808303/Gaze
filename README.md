@@ -98,3 +98,6 @@ See [CHANGELOG.md](CHANGELOG.md) and [requirements](docs/requirements.md).
 ## MSI installer
 
 Download the unsigned x64 MSI from the [installer release](https://github.com/bh808303/Gaze/releases/tag/v0.4.0-alpha-installer). It includes FFmpeg and .NET, a Start-menu shortcut, and uninstall registration. The same release includes encoder corresponding source and SHA256 checksums. See [installer/README.md](installer/README.md) for build instructions, installation behavior and validation limits.
+## Transcribe mode (in development)
+
+Transcribe collects window/rectangle screenshots into an ordered ZIP instead of recording MP4. See [Transcribe usage and validation limits](docs/transcribe.md). Temporary ZIP clipboard compatibility with Claude Desktop is proven by the standalone probe; integrated native acceptance is still in progress.

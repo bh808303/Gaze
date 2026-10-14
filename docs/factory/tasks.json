@@ -16,7 +16,8 @@
       "acceptanceCriteria": [
         "Create an in-memory virtual-file clipboard probe using Windows OLE FileGroupDescriptorW/FileContents; keep ownership on a pumping STA independent of the session window.",
         "Validate actual Claude Desktop attachment/paste and ZIP ingestion separately, recording app/OS versions, file-write observations and clipboard lifetime in docs/factory/evidence/clipboard.md.",
-        "No image/ZIP/temp spill or disk fallback; incompatibility blocks dependent production export pending user export-design review."
+        "No image/ZIP/temp spill or disk fallback; incompatibility blocks dependent production export pending user export-design review.",
+        "Human-approved export revision: app-owned temporary final ZIP staging with conventional file-drop clipboard is allowed and supersedes no-temp/no-disk constraints for AutoCopy-on. No permanent video-folder copy in this route. Actual Claude paste/ingestion still must be validated; define safe temp lifetime and cleanup."
       ],
       "testCommand": "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
       "dependsOn": []
@@ -64,7 +65,8 @@
       "acceptanceCriteria": [
         "Route AutoCopy on to proven virtual ZIP publisher, off to configured folder with collision-safe creation; snapshot route at session start.",
         "Export exceptions retain batch and expose Retry; never fall back to disk, overwrite existing files or mutate clipboard for empty batches.",
-        "Inject route failures and verify retry contains same retained ordered captures; verify clipboard ownership survives session UI disposal."
+        "Inject route failures and verify retry contains same retained ordered captures; verify clipboard ownership survives session UI disposal.",
+        "Human-approved export revision: app-owned temporary final ZIP staging with conventional file-drop clipboard is allowed and supersedes no-temp/no-disk constraints for AutoCopy-on. No permanent video-folder copy in this route. Actual Claude paste/ingestion still must be validated; define safe temp lifetime and cleanup."
       ],
       "testCommand": "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
       "dependsOn": [
@@ -151,7 +153,8 @@
       "acceptanceCriteria": [
         "Verify integrated Claude Desktop paste/attachment and ingestion separately, ZIP PNG decoding/order/instructions, session-close lifetime and process-exit limitation; observe no clipboard-route image/ZIP/temp writes.",
         "Exercise folder collisions, clipboard/folder failure and Retry with retained contents; record app/OS versions and destination outcomes in docs/factory/evidence/export-validation.md.",
-        "Update README/user docs for gestures, routes, tested compatibility, capture limits and large-batch memory risk; mark unmet/untested criteria and run final mandatory checks."
+        "Update README/user docs for gestures, routes, tested compatibility, capture limits and large-batch memory risk; mark unmet/untested criteria and run final mandatory checks.",
+        "Human-approved export revision: app-owned temporary final ZIP staging with conventional file-drop clipboard is allowed and supersedes no-temp/no-disk constraints for AutoCopy-on. No permanent video-folder copy in this route. Actual Claude paste/ingestion still must be validated; define safe temp lifetime and cleanup."
       ],
       "testCommand": "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
       "dependsOn": [

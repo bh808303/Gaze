@@ -1,0 +1,33 @@
+<ui:FluentWindow x:Class="Gaze.Fluent.TranscribeWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+ Title="Gaze · Transcribe" Width="332.35" Height="540" WindowStyle="None" ResizeMode="NoResize"
+ ShowInTaskbar="True" Topmost="False" WindowStartupLocation="CenterScreen" Style="{DynamicResource DefaultFluentWindowStyle}">
+ <ui:FluentWindow.Template><ControlTemplate TargetType="{x:Type ui:FluentWindow}"><AdornerDecorator><ContentPresenter Content="{TemplateBinding Content}"/></AdornerDecorator></ControlTemplate></ui:FluentWindow.Template>
+ <Border Width="391" Height="635.2941176" Background="#F7F9FC" BorderBrush="#E4E7EC" BorderThickness="1" CornerRadius="12">
+  <Border.LayoutTransform><ScaleTransform ScaleX="0.85" ScaleY="0.85"/></Border.LayoutTransform>
+  <Grid>
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <Grid>
+    <Border Background="#12080B" CornerRadius="12,12,0,0"/>
+    <Image Source="Assets/gaze-header.png" Stretch="Uniform" VerticalAlignment="Top" MouseLeftButtonDown="HeaderDrag" AutomationProperties.Name="Gaze — Into the abyss"/>
+    <ui:Button Content="×" ToolTip="Close session" AutomationProperties.Name="Close session" Click="CloseClick" Width="30" Height="30" Padding="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,12,0" Background="#210E13" BorderBrush="#63202D" Foreground="#ECDADF"/>
+   </Grid>
+   <Grid Grid.Row="1" Margin="11.7647,12">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <TextBlock Text="Transcribe" FontSize="20" FontWeight="SemiBold" Foreground="#101828"/>
+    <TextBlock Grid.Row="1" Text="Middle-click a window, or middle-drag an area.&#10;Done collects your screenshots into a ZIP." TextWrapping="Wrap" Foreground="#667085" Margin="0,8,0,12"/>
+    <Border Grid.Row="2" Background="White" BorderBrush="#E4E7EC" BorderThickness="1" CornerRadius="10" Padding="8">
+     <Grid><TextBlock x:Name="Empty" Text="No captures yet" Foreground="#98A2B3" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image x:Name="Thumbnail" Stretch="Uniform" AutomationProperties.Name="Latest capture"/></Grid>
+    </Border>
+    <StackPanel Grid.Row="3" Margin="0,12,0,0"><TextBlock x:Name="CountText" Text="0 captures" FontWeight="SemiBold" Foreground="#344054"/><TextBlock x:Name="StatusText" TextWrapping="Wrap" Foreground="#667085" Margin="0,6,0,0"/></StackPanel>
+   </Grid>
+   <Grid Grid.Row="2" Margin="11.7647,0,11.7647,12"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+    <ui:Button x:Name="UndoButton" Content="Undo" Click="UndoClick" HorizontalAlignment="Stretch" Margin="0,0,6,0"/>
+    <ui:Button x:Name="DoneButton" Grid.Column="1" Content="Done" Click="DoneClick" HorizontalAlignment="Stretch" Margin="0,0,6,0" Background="#B50F21" Foreground="White"/>
+    <ui:Button x:Name="CancelButton" Grid.Column="2" Content="Cancel" Click="CancelClick" HorizontalAlignment="Stretch"/>
+   </Grid>
+  </Grid>
+ </Border>
+</ui:FluentWindow>

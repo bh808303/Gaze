@@ -1,0 +1,8 @@
+OS: Microsoft Windows NT 10.0.26300.0; runtime: 10.0.11; monitors: 1
+Injection pointer: requested={X=120,Y=160}, observed={X=120,Y=160}, foregroundFixture=True
+PASS ordinary left-click and wheel reach target during capture session
+PASS ordinary double-click, left-drag and keyboard reach target during capture session
+PASS actual native middle-click produces one retained window capture
+PASS actual native middle-drag produces a second retained rectangle
+FAIL: System.Exception: Rectangle dimensions/pixels do not match selected fixture area
+   at Gaze.App.TranscribeIntegrationProbe.<>c__DisplayClass2_0.<<Run>g__Check|3>d.MoveNext() in C:\Users\BH808\OneDrive\Documents\Codex\Projects\Software Factory\Gaze-transcribe\src\Gaze.App\TranscribeIntegrationProbe.cs:line 118

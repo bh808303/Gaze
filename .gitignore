@@ -8,3 +8,4 @@ docs/factory/runs/
 .packages/
 artifacts/
 .tools/
+__pycache__/

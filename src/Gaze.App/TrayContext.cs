@@ -29,6 +29,8 @@ internal sealed class TrayContext : ApplicationContext
     private string? lastFile;
     private TrayPanel? panel;
     private int diskTick;
+    private TranscribeController? transcribe;
+    private readonly List<TranscribeExporter> transcribeExports = [];
 
     internal TrayContext(bool validation = false)
     {
@@ -74,6 +76,19 @@ internal sealed class TrayContext : ApplicationContext
     private void Shortcut(bool fromTray = false)
     {
         if (cleaning || starting || session.State == SessionState.Saving) return;
+        if (transcribe != null) { transcribe.Finish(); Menu(); return; }
+        if (session.State == SessionState.Idle && settings.Mode == CaptureMode.Transcribe)
+        {
+            panel?.Hide(); escape.Reset();
+            transcribe = new TranscribeController(settings.AutoCopy, settings.Folder, Dispatch, (exporter, exported) =>
+            {
+                transcribe = null; escape.Reset();
+                if (exported && exporter.HasClipboardOffer) transcribeExports.Add(exporter);
+                else { try { exporter.Dispose(); } catch (Exception error) { transcribeExports.Add(exporter); Notify("Temporary ZIP retained", error.Message); } }
+                ResetPanel(); Menu();
+            });
+            Menu(); return;
+        }
         if (session.State == SessionState.Idle)
         {
             var root = settings.Mode == CaptureMode.Window ? (fromTray ? lastForeground : Native.GetForegroundWindow()) : 0;
@@ -112,6 +127,7 @@ internal sealed class TrayContext : ApplicationContext
     }
     private void Stop()
     {
+        if (transcribe != null) { transcribe.Finish(); return; }
         if (session.State is not (SessionState.Recording or SessionState.Paused)) return;
         session.Tick(clock.Elapsed - lastTick); lastTick = clock.Elapsed;
         session.Stop(); escape.Reset(); overlay.Hide(); noticeUntil = TimeSpan.Zero;
@@ -162,8 +178,8 @@ internal sealed class TrayContext : ApplicationContext
             }
         }
         var duration = $"{(int)session.Duration.TotalHours:00}:{session.Duration.Minutes:00}:{session.Duration.Seconds:00}";
-        tray.Text = $"Gaze · {session.State} · {duration}";
-        panel?.RefreshState(session.State, session.Duration, starting, lastFile != null);
+        tray.Text = transcribe != null ? "Gaze · Transcribe" : $"Gaze · {session.State} · {duration}";
+        panel?.RefreshState(transcribe != null ? SessionState.Recording : session.State, session.Duration, starting, lastFile != null);
         if (now < noticeUntil) return;
         if (session.State == SessionState.Armed)
         {
@@ -198,7 +214,7 @@ internal sealed class TrayContext : ApplicationContext
                 bool repeat = escHeld; escHeld = true;
                 if (!repeat && session.State == SessionState.Armed && !starting)
                     Dispatch(CancelArming);
-                else if (settings.DoubleEscape && session.State is SessionState.Recording or SessionState.Paused)
+                else if (settings.DoubleEscape && (transcribe != null || session.State is SessionState.Recording or SessionState.Paused))
                 {
                     if (escape.Press(clock.Elapsed, repeat)) { Dispatch(Stop); return 1; }
                     if (!repeat) Dispatch(() => Notice("Press Esc again within 1 second to stop", 1));
@@ -215,8 +231,9 @@ internal sealed class TrayContext : ApplicationContext
     }
     private void Menu()
     {
-        tray.Icon = icons.For(session.State);
-        panel?.RefreshState(session.State, session.Duration, starting, lastFile != null);
+        var state = transcribe != null ? SessionState.Recording : session.State;
+        tray.Icon = icons.For(state);
+        panel?.RefreshState(state, session.Duration, starting, lastFile != null);
     }
     private void ApplySettings(Settings proposed)
     {
@@ -232,9 +249,9 @@ internal sealed class TrayContext : ApplicationContext
             path => Guard(() => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true })),
             () => Guard(OpenFolder),
             path => Guard(() => { Capture.CopyFile(path); Notify("Copied", Path.GetFileName(path)); }),
-            () => Guard(() => { quitAfterSave = true; if (starting) { quitAfterSave = false; Notify("Starting", "Wait for recording to start before quitting."); } else if (session.State is SessionState.Recording or SessionState.Paused) Stop(); else if (session.State != SessionState.Saving) ExitThread(); }),
+            () => Guard(() => { if (transcribe != null) { if (transcribe.RequestClose()) ExitThread(); return; } quitAfterSave = true; if (starting) { quitAfterSave = false; Notify("Starting", "Wait for recording to start before quitting."); } else if (session.State is SessionState.Recording or SessionState.Paused) Stop(); else if (session.State != SessionState.Saving) ExitThread(); }),
             () => Guard(Cleanup));
-        panel.RefreshState(session.State, session.Duration, starting, lastFile != null);
+        panel.RefreshState(transcribe != null ? SessionState.Recording : session.State, session.Duration, starting, lastFile != null);
         panel.OpenAt(Cursor.Position);
     }
     internal nint OpenPanelForValidation() { OpenPanel(); return panel!.Handle; }
@@ -277,6 +294,12 @@ internal sealed class TrayContext : ApplicationContext
     }
     protected override void ExitThreadCore()
     {
+        transcribe?.Dispose();
+        foreach (var exporter in transcribeExports)
+        {
+            try { exporter.Dispose(); }
+            catch (Exception error) { Trace.WriteLine("Transcribe temporary ZIP cleanup: " + error.Message); }
+        }
         timer.Stop(); timer.Dispose(); Native.UnregisterHotKey(messages.Handle, 1);
         if (hook != 0) Native.UnhookWindowsHookEx(hook);
         capture?.Dispose(); overlay.Dispose(); tray.Visible = false; tray.Dispose(); icons.Dispose(); panel?.Dispose(); messages.Dispose(); base.ExitThreadCore();

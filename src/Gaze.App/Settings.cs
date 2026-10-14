@@ -98,7 +98,7 @@ internal sealed class SettingsForm : Form
             Wide(card);
         }
         var mode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
-        mode.Items.AddRange(["Selected window", "All monitors", "Main monitor"]); mode.SelectedIndex = (int)settings.Mode;
+        mode.Items.AddRange(["Selected window", "All monitors", "Main monitor", "Transcribe"]); mode.SelectedIndex = (int)settings.Mode;
         var canvas = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, Enabled = settings.Mode == CaptureMode.Window };
         canvas.Items.AddRange(["Original window size (default)", "Selected window's monitor size"]);
         canvas.SelectedIndex = (int)settings.WindowCanvas;

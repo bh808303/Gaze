@@ -6,6 +6,18 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (args.Length == 2 && args[0] == "--transcribe-native-target")
+        { TranscribeIntegrationProbe.RunTarget(args[1]); return; }
+        if (args.Length == 2 && args[0] == "--transcribe-integration-probe")
+        { TranscribeIntegrationProbe.Run(args[1]); return; }
+        if (args.Length == 1 && args[0] == "--transcribe-file-drop-probe")
+        { TranscribeFileDropProbe.Run(); return; }
+        if (args.Length == 1 && args[0] == "--stop-transcribe-file-drop-probe")
+        { TranscribeFileDropProbe.Stop(); return; }
+        if (args.Length == 1 && args[0] == "--transcribe-clipboard-probe")
+        { TranscribeClipboardProbe.Run(); return; }
+        if (args.Length == 1 && args[0] == "--stop-transcribe-clipboard-probe")
+        { TranscribeClipboardProbe.Stop(); return; }
         if (args.Length == 2 && args[0] == "--transcribe-capture-probe")
         { TranscribeCaptureProbe.Run(args[1]); return; }
         if (args.Contains("--tray-startup-check"))

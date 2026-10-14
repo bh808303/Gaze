@@ -1,0 +1,3 @@
+OS: Microsoft Windows NT 10.0.26300.0; runtime: 10.0.11; monitors: 1
+FAIL: System.Exception: Native fixture is covered at the injected click point; no input claim can be made
+   at Gaze.App.TranscribeIntegrationProbe.<>c__DisplayClass2_0.<<Run>g__Check|3>d.MoveNext() in C:\Users\BH808\OneDrive\Documents\Codex\Projects\Software Factory\Gaze-transcribe\src\Gaze.App\TranscribeIntegrationProbe.cs:line 78

@@ -1,5 +1,12 @@
 # Changelog
 
+## Transcribe development — 2026-10-14
+
+- Add Transcribe mode with a separate screenshot session, middle-click window capture, middle-drag monitor-clipped rectangles, latest thumbnail/count, Undo, Done/Stop, Cancel and close choices.
+- Add ordered in-memory ZIP construction and filename sanitization. AutoCopy stages only a final temporary ZIP for conventional file-drop clipboard; AutoCopy off saves uniquely in the configured folder. Retain captures on export failure for Retry.
+- Preserve video-mode enum values, append Transcribe as 3, and keep clipboard ownership independent of session-window lifetime. Prevent export reentry and avoid unused clipboard-owner threads for empty sessions.
+- Add core, export/settings and native fixture checks. Single-monitor native capture/input/dialog checks pass; integrated Claude, tray quit/video regression and deferred multi-monitor/mixed-DPI validation remain incomplete. See docs/factory/evidence/integration.md.
+
 ## Unreleased — 2026-10-13
 
 - Add **Record timeline metadata**, off by default for new/legacy settings and frozen at recording startup. Preserve the basic timeline and separate keyboard opt-in.

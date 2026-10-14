@@ -1,0 +1,4 @@
+OS: Microsoft Windows NT 10.0.26300.0; runtime: 10.0.11; monitors: 1
+FAIL: System.Exception: Timeout: ordinary left click
+   at Gaze.App.TranscribeIntegrationProbe.<Run>g__Wait|2_1(Func`1 ready, String name) in C:\Users\BH808\OneDrive\Documents\Codex\Projects\Software Factory\Gaze-transcribe\src\Gaze.App\TranscribeIntegrationProbe.cs:line 42
+   at Gaze.App.TranscribeIntegrationProbe.<>c__DisplayClass2_0.<<Run>g__Check|2>d.MoveNext() in C:\Users\BH808\OneDrive\Documents\Codex\Projects\Software Factory\Gaze-transcribe\src\Gaze.App\TranscribeIntegrationProbe.cs:line 56

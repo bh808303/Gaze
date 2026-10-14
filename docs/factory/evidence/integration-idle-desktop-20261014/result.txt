@@ -1,0 +1,17 @@
+OS: Microsoft Windows NT 10.0.26300.0; runtime: 10.0.11; monitors: 1
+Injection pointer: requested={X=120,Y=160}, observed={X=120,Y=160}, foregroundFixture=True
+PASS ordinary left-click and wheel reach target during capture session
+PASS ordinary double-click, left-drag and keyboard reach target during capture session
+PASS actual native middle-click produces one retained window capture
+PASS actual native middle-drag produces a second retained rectangle
+Rectangle observed: 70x45, center=Color [A=255, R=0, G=255, B=0]
+PASS rectangle PNG decodes to selected 70x45 pixels without red selection/feedback at center
+PASS Undo retains first window capture
+Session completed, exported=True
+PASS Finish closes session, produces ordered ZIP with decodable fixture PNG and instructions, no MP4
+PASS middle-button consumed during session and restored to target after Finish
+PASS injected export callback cannot Cancel, close or reenter Finish during export
+PASS real close dialog Keep capturing and failed Finish retain batch; Retry finishes and closes
+PASS real close dialog Discard clears batch and closes without export
+PASS repeated start/empty Finish releases hooks and creates no extra ZIP
+UNTESTED: multi-monitor/mixed DPI; tray-host quit routing, clipboard integrated export, video regression

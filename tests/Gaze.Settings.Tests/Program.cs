@@ -7,6 +7,9 @@ internal static class Program
     [STAThread] static int Main()
     {
         try {
+            if ((int)CaptureMode.Window != 0 || (int)CaptureMode.AllMonitors != 1 || (int)CaptureMode.CurrentMonitor != 2 || (int)CaptureMode.Transcribe != 3) throw new Exception("Capture mode serialization changed");
+            var transcribe = JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(new Settings { Mode = CaptureMode.Transcribe }))!;
+            if (transcribe.Mode != CaptureMode.Transcribe) throw new Exception("Transcribe mode did not round-trip");
             var property = typeof(Settings).GetProperty("RecordTimelineMetadata");
             if (property == null) throw new Exception("Settings has no optional metadata toggle");
             var legacy = JsonSerializer.Deserialize<Settings>("{\"KeyboardTimeline\":true}")!;
@@ -25,6 +28,8 @@ internal static class Program
             using var form = new SettingsForm(loaded, _ => {});
             IEnumerable<Control> Controls(Control c) => c.Controls.Cast<Control>().SelectMany(x => new[]{x}.Concat(Controls(x)));
             var toggle = Controls(form).OfType<CheckBox>().Single(c => c.Text == "Record timeline metadata");
+            var modeChoices = Controls(form).OfType<ComboBox>().Single(c => c.Items.Contains("Transcribe"));
+            if (modeChoices.Items.Count != 4 || modeChoices.Items[3]?.ToString() != "Transcribe") throw new Exception("Capture mode dropdown mapping changed");
             if (!toggle.Checked) throw new Exception("Settings UI lost persisted toggle");
             Console.WriteLine("PASS actual Settings migration/persistence, panel DTO and settings toggle"); return 0;
         } catch(Exception e) { Console.WriteLine("FAIL " + e.Message); return 1; }

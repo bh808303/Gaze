@@ -31,12 +31,12 @@ public partial class PanelWindow : FluentWindow
         Fps.ItemsSource = Enumerable.Range(1, 30);
         System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(this);
         Loaded += (_, _) => { if (editing) EditSettings(); };
-        updating = true; Mode.ItemsSource = new[] { "Selected window", "All monitors", "Main monitor" }; Mode.SelectedIndex = (int)getOptions().Mode; updating = false;
+        updating = true; Mode.ItemsSource = new[] { "Selected window", "All monitors", "Main monitor", "Transcribe" }; Mode.SelectedIndex = (int)getOptions().Mode; updating = false;
         Closing += (_, e) => { if (disposing) return; e.Cancel = true; Hide(); Home(); };
         RefreshRecordings();
     }
     public nint NativeHandle => new WindowInteropHelper(this).EnsureHandle();
-    private static System.Windows.Application EnsureHostApplication()
+    internal static System.Windows.Application EnsureHostApplication()
     {
         if (System.Windows.Application.Current is { } current) return current;
         // Keep the tray panel independent of GPU/DWM surface state and capture affinity changes.
@@ -71,6 +71,7 @@ public partial class PanelWindow : FluentWindow
         Status.Text = "● " + (busy ? "Starting…" : idle ? "Ready" : state.ToString()); Duration.Text = $"{(int)duration.TotalHours:00}:{duration.Minutes:00}:{duration.Seconds:00}";
         Status.Foreground = new SolidColorBrush(state is SessionState.Recording or SessionState.Paused ? Color.FromRgb(185, 28, 28) : state is SessionState.Armed or SessionState.Saving ? Color.FromRgb(180, 100, 0) : Color.FromRgb(21, 128, 61));
         MainAction.Content = state switch { SessionState.Idle => "Arm recording", SessionState.Armed => "Start recording", SessionState.Saving => "Saving…", _ => "Stop and save" };
+        if (getOptions().Mode == CaptureMode.Transcribe) MainAction.Content = idle ? "Start" : "Stop";
         MainAction.IsEnabled = !busy && state != SessionState.Saving; Mode.IsEnabled = idle; Cleanup.IsEnabled = idle;
         Gear.IsEnabled = idle; CancelArm.Visibility = state == SessionState.Armed ? Visibility.Visible : Visibility.Collapsed; CancelArm.IsEnabled = !busy;
         if (editing && !idle) Home(); SelectionState();

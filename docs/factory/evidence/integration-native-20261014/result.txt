@@ -1,0 +1,8 @@
+OS: Microsoft Windows NT 10.0.26300.0; runtime: 10.0.11; monitors: 1
+PASS actual native middle-click produces one retained window capture
+PASS actual native middle-drag produces a second retained rectangle
+PASS Undo retains first window capture
+Session completed, exported=True
+PASS Finish closes session, produces ordered ZIP with decodable fixture PNG and instructions, no MP4
+PASS repeated start/empty Finish releases hooks and creates no extra ZIP
+UNTESTED: multi-monitor/mixed DPI; native close/quit choice dialogs, clipboard integrated export, video regression
