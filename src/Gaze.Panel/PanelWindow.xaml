@@ -22,6 +22,7 @@
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,12,0">
      <ui:Button x:Name="RecordingsNavigation" ToolTip="Recordings" AutomationProperties.Name="Recordings" Click="RecordingsClick" Width="30" Height="30" Padding="0" Margin="0,0,5.88235,0" Background="#210E13" BorderBrush="#63202D" Foreground="#ECDADF"><ui:SymbolIcon x:Name="RecordingsIcon" Symbol="Folder24" FontSize="15"/></ui:Button>
      <ui:Button x:Name="Gear" ToolTip="Settings" AutomationProperties.Name="Settings" Click="GearClick" Width="30" Height="30" Padding="0" Margin="0,0,5.88235,0" Background="#210E13" BorderBrush="#63202D" Foreground="#ECDADF"><ui:SymbolIcon x:Name="GearIcon" Symbol="Settings24" FontSize="15"/></ui:Button>
+     <ui:Button ToolTip="Quit Gaze" AutomationProperties.Name="Quit Gaze" Click="QuitClick" Width="30" Height="30" Padding="0" Margin="0,0,5.88235,0" Background="#210E13" BorderBrush="#63202D" Foreground="#ECDADF"><ui:SymbolIcon Symbol="Power24" FontSize="15"/></ui:Button>
      <ui:Button ToolTip="Close panel" AutomationProperties.Name="Close panel" Click="DismissClick" Width="30" Height="30" Padding="0" Background="#210E13" BorderBrush="#63202D" Foreground="#ECDADF"><ui:SymbolIcon Symbol="Dismiss24" FontSize="15"/></ui:Button>
     </StackPanel>
    </Grid>
