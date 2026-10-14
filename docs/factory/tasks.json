@@ -1,5 +1,7 @@
 {
-  "completedTaskIds": [],
+  "completedTaskIds": [
+    "T01"
+  ],
   "checks": [
     "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
     "pwsh -NoProfile -File scripts/Build.ps1 -Release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
@@ -8,18 +10,6 @@
     "git diff --check; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
   ],
   "tasks": [
-    {
-      "id": "T01",
-      "description": "Prove native screenshot feasibility. Bounded scope: src/Gaze.App/TranscribeCaptureProbe.cs; src/Gaze.App/TranscribeScreenshotSource.cs; src/Gaze.App/Program.cs; docs/factory/evidence/capture.md. Spec mapping: AC03,AC04,AC07,AC14.",
-      "acceptanceCriteria": [
-        "Create a bounded screenshot probe using existing Windows Graphics Capture for cursor-free full-window PNGs and visible-pixel rectangle capture; do not wire production controls.",
-        "Record occluded-window freshness, starting-monitor clipping, mixed DPI and UI exclusion results with OS/hardware versions in docs/factory/evidence/capture.md.",
-        "Preserve process/batch on ordinary failures; if approved capture semantics cannot be met, stop the affected dependency chain and surface the limitation.",
-        "Human-approved validation adjustment: run feasible single-monitor behavioral/native checks and required automated checks. Multi-monitor/mixed-DPI desktop checks and unavailable hardware/driver metadata are deferred, not implementation/task-completion prerequisites. Record them explicitly as untested; preserve intended behavior and do not claim they passed."
-      ],
-      "testCommand": "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
-      "dependsOn": []
-    },
     {
       "id": "T02",
       "description": "Prove virtual ZIP compatibility with Claude Desktop. Bounded scope: src/Gaze.App/TranscribeClipboard.cs; src/Gaze.App/Program.cs; docs/factory/evidence/clipboard.md. Spec mapping: AC11,AC13.",

@@ -6,6 +6,8 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (args.Length == 2 && args[0] == "--transcribe-capture-probe")
+        { TranscribeCaptureProbe.Run(args[1]); return; }
         if (args.Contains("--tray-startup-check"))
         {
             var evidence = args[Array.IndexOf(args, "--tray-startup-check") + 1]; Directory.CreateDirectory(evidence);
