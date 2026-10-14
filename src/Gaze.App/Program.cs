@@ -102,8 +102,13 @@ internal static class Program
             Application.ThreadException += (_, error) => { File.WriteAllText(previewPath + ".error.txt", error.Exception.ToString()); Application.ExitThread(); };
             var value = new Settings();
             if (args.Contains("--preview-folder")) value.Folder = args[Array.IndexOf(args, "--preview-folder") + 1];
-            using var preview = new TrayPanel(() => value, proposed => value = proposed, () => { }, () => { }, _ => { }, () => { }, _ => { }, () => { }, () => { });
+            using var preview = new TrayPanel(() => value, proposed => value = proposed, () => { }, () => { }, _ => { }, () => { }, _ => { }, () => { }, () => { }, () => false);
             preview.RefreshState(Gaze.Core.SessionState.Idle, TimeSpan.Zero, false, false);
+            if (args.Contains("--check-navigation"))
+            {
+                try { preview.CheckNavigation(); }
+                catch (Exception error) { File.WriteAllText(previewPath + ".error.txt", error.ToString()); Environment.ExitCode = 1; return; }
+            }
             if (args.Contains("--check-compression")) preview.CheckCompression();
             if (args.Contains("--check-keyboard")) preview.CheckKeyboard();
             if (args.Contains("--check-splitting"))
@@ -112,6 +117,7 @@ internal static class Program
                 catch (Exception e) { File.WriteAllText(previewPath + ".error.txt", e.ToString()); Environment.ExitCode = 1; return; }
             }
             if (args.Contains("--preview-settings")) preview.EditSettings();
+            if (args.Contains("--preview-recordings")) preview.ShowRecordings();
             preview.RunPreview(previewPath); return;
         }
         if (args.Contains("--self-test"))

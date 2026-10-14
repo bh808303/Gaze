@@ -7,12 +7,12 @@ internal sealed class TrayPanel : IDisposable, IWin32Window
     private uint displayAffinity;
     private Point? placementAnchor;
     public nint Handle => window.NativeHandle;
-    internal TrayPanel(Func<Settings> getSettings, Action<Settings> apply, Action action, Action cancel, Action<string> open, Action folder, Action<string> copy, Action quit, Action cleanup)
+    internal TrayPanel(Func<Settings> getSettings, Action<Settings> apply, Action action, Action cancel, Action<string> open, Action folder, Action<string> copy, Action quit, Action cleanup, Func<bool>? readSignInStartup = null)
     {
         window = new PanelWindow(() =>
         {
             var value = getSettings(); return new PanelOptions { Mode = value.Mode, Canvas = value.WindowCanvas, Folder = value.Folder, FrameRate = value.FrameRate, Compression = value.Compression, Modifiers = value.Modifiers, Key = (int)value.Key, ShortcutText = value.Shortcut, AutoCopy = value.AutoCopy, SplitAt29Mb = value.SplitAt29Mb, RecordTimelineMetadata = value.RecordTimelineMetadata, KeyboardTimeline = value.KeyboardTimeline, ClickHighlight = value.ClickHighlight, DoubleEscape = value.DoubleEscape };
-        }, options => apply(new Settings { StartAtSignIn = options.StartAtSignIn, Mode = options.Mode, WindowCanvas = options.Canvas, Folder = options.Folder, FrameRate = options.FrameRate, Compression = options.Compression, Modifiers = options.Modifiers, Key = (Keys)options.Key, AutoCopy = options.AutoCopy, SplitAt29Mb = options.SplitAt29Mb, RecordTimelineMetadata = options.RecordTimelineMetadata, KeyboardTimeline = options.KeyboardTimeline, ClickHighlight = options.ClickHighlight, DoubleEscape = options.DoubleEscape }), action, cancel, open, folder, copy, quit, cleanup, () => WindowsSignInStartup.Create().IsEnabled);
+        }, options => apply(new Settings { StartAtSignIn = options.StartAtSignIn, Mode = options.Mode, WindowCanvas = options.Canvas, Folder = options.Folder, FrameRate = options.FrameRate, Compression = options.Compression, Modifiers = options.Modifiers, Key = (Keys)options.Key, AutoCopy = options.AutoCopy, SplitAt29Mb = options.SplitAt29Mb, RecordTimelineMetadata = options.RecordTimelineMetadata, KeyboardTimeline = options.KeyboardTimeline, ClickHighlight = options.ClickHighlight, DoubleEscape = options.DoubleEscape }), action, cancel, open, folder, copy, quit, cleanup, readSignInStartup ?? (() => WindowsSignInStartup.Create().IsEnabled));
         window.DragStarted += () => placementAnchor = null;
         window.SizeChanged += (_, _) => { if (window.IsVisible) PanelWindow.QueueOnHost(AlignToWorkingArea); };
         Native.SetWindowDisplayAffinity(Handle, 0);
@@ -28,7 +28,9 @@ internal sealed class TrayPanel : IDisposable, IWin32Window
         window.RefreshState(state, duration, busy);
     }
     internal void RefreshRecordings() => window.RefreshRecordings();
+    internal void ShowRecordings() => window.ShowRecordings();
     internal void EditSettings() => window.EditSettings();
+    internal void CheckNavigation() => window.CheckNavigation();
     internal void CheckCompression() => window.CheckCompression();
     internal void CheckSplitting() => window.CheckSplitting();
     internal void CheckKeyboard() => window.CheckKeyboard();

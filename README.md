@@ -101,3 +101,9 @@ Download the unsigned x64 MSI from the [installer release](https://github.com/bh
 ## Transcribe mode (in development)
 
 Transcribe collects window/rectangle screenshots into an ordered ZIP instead of recording MP4. See [Transcribe usage and validation limits](docs/transcribe.md). Temporary ZIP clipboard compatibility with Claude Desktop is proven by the standalone probe; integrated native acceptance is still in progress.
+
+## Compact tray menu
+The default menu shows recording controls, status, and capture mode. The header folder icon opens the recordings panel; its back arrow returns to the compact menu. The settings cog opens settings. Recording actions and Quit remain available in the recordings panel. The compact menu grows while armed to keep Cancel arming accessible.
+
+Visual checks: use `--panel-preview <PNG path> --check-navigation` for navigation checks, `--preview-recordings` for the recordings panel, or `--preview-settings` for settings. Preview uses an isolated sign-in startup value and does not access the Windows startup registry.
+

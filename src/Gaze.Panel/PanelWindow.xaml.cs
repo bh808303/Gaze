@@ -18,7 +18,7 @@ public partial class PanelWindow : FluentWindow
     private readonly Func<bool> readSignInStartup;
     private readonly Action action, cancel, folder, quit, cleanup;
     private readonly Action<string> open, copy;
-    private bool editing, updating, idle = true, disposing;
+    private bool viewingRecordings, editing, updating, idle = true, disposing;
     private uint modifiers; private int key;
     public sealed record Recording(string Path, string Name, string Details);
     public PanelWindow(Func<PanelOptions> getOptions, Action<PanelOptions> apply, Action action, Action cancel, Action<string> open, Action folder, Action<string> copy, Action quit, Action cleanup, Func<bool>? readSignInStartup = null)
@@ -33,7 +33,7 @@ public partial class PanelWindow : FluentWindow
         Loaded += (_, _) => { if (editing) EditSettings(); };
         updating = true; Mode.ItemsSource = new[] { "Selected window", "All monitors", "Main monitor", "Transcribe" }; Mode.SelectedIndex = (int)getOptions().Mode; updating = false;
         Closing += (_, e) => { if (disposing) return; e.Cancel = true; Hide(); Home(); };
-        RefreshRecordings();
+        Home();
     }
     public nint NativeHandle => new WindowInteropHelper(this).EnsureHandle();
     internal static System.Windows.Application EnsureHostApplication()
@@ -74,14 +74,17 @@ public partial class PanelWindow : FluentWindow
         if (getOptions().Mode == CaptureMode.Transcribe) MainAction.Content = idle ? "Start" : "Stop";
         MainAction.IsEnabled = !busy && state != SessionState.Saving; Mode.IsEnabled = idle; Cleanup.IsEnabled = idle;
         Gear.IsEnabled = idle; CancelArm.Visibility = state == SessionState.Armed ? Visibility.Visible : Visibility.Collapsed; CancelArm.IsEnabled = !busy;
-        if (editing && !idle) Home(); SelectionState();
+        if (editing && !idle) Home();
+        if (!editing && !viewingRecordings) SetHomeSize(state); SelectionState();
     }
     public void Home()
     {
-        editing = false; Heading.Text = "Gaze"; GearIcon.Symbol = SymbolRegular.Settings24;
-        Height = 540; PanelFrame.Height = 635.2941176;
-        FooterRow.Height = new GridLength(61.7647);
-        HomePage.Visibility = HomeFooter.Visibility = Visibility.Visible; SettingsPage.Visibility = SettingsFooter.Visibility = Visibility.Collapsed;
+        editing = viewingRecordings = false; Heading.Text = "Gaze"; GearIcon.Symbol = SymbolRegular.Settings24;
+        RecordingsIcon.Symbol = SymbolRegular.Folder24;
+        SetHomeSize(CancelArm.Visibility == Visibility.Visible ? SessionState.Armed : SessionState.Idle);
+        FooterRow.Height = new GridLength(0);
+        HomePage.Visibility = Visibility.Visible;
+        RecordingsPage.Visibility = HomeFooter.Visibility = SettingsPage.Visibility = SettingsFooter.Visibility = Visibility.Collapsed;
         updating = true; Mode.SelectedIndex = (int)getOptions().Mode; updating = false; RefreshRecordings();
     }
     public void EditSettings()
@@ -89,6 +92,7 @@ public partial class PanelWindow : FluentWindow
         if (!idle) return;
         var startupEnabled = readSignInStartup();
         Height = 540; PanelFrame.Height = 635.2941176;
+        viewingRecordings = false; RecordingsPage.Visibility = Visibility.Collapsed; RecordingsIcon.Symbol = SymbolRegular.Folder24;
         editing = true; Heading.Text = "Settings"; GearIcon.Symbol = SymbolRegular.ArrowLeft24;
         FooterRow.Height = new GridLength(55.7647);
         HomePage.Visibility = HomeFooter.Visibility = Visibility.Collapsed; SettingsPage.Visibility = SettingsFooter.Visibility = Visibility.Visible;
@@ -101,6 +105,46 @@ public partial class PanelWindow : FluentWindow
         KeyboardTimeline.IsChecked = options.KeyboardTimeline;
         RecordTimelineMetadata.IsChecked = options.RecordTimelineMetadata;
         StartAtSignIn.IsChecked = startupEnabled;
+    }
+    private void SetHomeSize(SessionState state)
+    {
+        Height = state == SessionState.Armed ? 230 : 200;
+        PanelFrame.Height = Height / 0.85;
+    }
+    public void ShowRecordings()
+    {
+        editing = false; viewingRecordings = true;
+        Height = 540; PanelFrame.Height = Height / 0.85;
+        FooterRow.Height = new GridLength(55.7647);
+        HomePage.Visibility = SettingsPage.Visibility = SettingsFooter.Visibility = Visibility.Collapsed;
+        RecordingsPage.Visibility = HomeFooter.Visibility = Visibility.Visible;
+        GearIcon.Symbol = SymbolRegular.Settings24;
+        RecordingsIcon.Symbol = SymbolRegular.ArrowLeft24;
+        RefreshRecordings();
+    }
+    private void RecordingsClick(object sender, RoutedEventArgs e)
+    {
+        if (viewingRecordings) Home(); else ShowRecordings();
+    }
+    public void CheckNavigation()
+    {
+        void Check(bool home, bool recordings, bool settings, double height)
+        {
+            if ((HomePage.Visibility == Visibility.Visible) != home ||
+                (RecordingsPage.Visibility == Visibility.Visible) != recordings ||
+                (SettingsPage.Visibility == Visibility.Visible) != settings || Math.Abs(Height - height) > 1)
+                throw new InvalidOperationException($"Panel navigation or dimensions are incorrect: home={HomePage.Visibility}, recordings={RecordingsPage.Visibility}, settings={SettingsPage.Visibility}, height={Height}, expected={height}.");
+        }
+        Home(); Check(true, false, false, 200);
+        RecordingsClick(this, new RoutedEventArgs()); Check(false, true, false, 540);
+        GearClick(this, new RoutedEventArgs()); Check(false, false, true, 540);
+        RecordingsClick(this, new RoutedEventArgs()); Check(false, true, false, 540);
+        RecordingsClick(this, new RoutedEventArgs()); Check(true, false, false, 200);
+        RefreshState(SessionState.Armed, TimeSpan.Zero, false);
+        Check(true, false, false, 230);
+        if (CancelArm.Visibility != Visibility.Visible) throw new InvalidOperationException("Arming cancel is hidden.");
+        RefreshState(SessionState.Idle, TimeSpan.Zero, false);
+        Check(true, false, false, 200);
     }
     public void RunPreview(string path)
     {
