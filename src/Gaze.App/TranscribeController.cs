@@ -21,7 +21,7 @@ internal sealed class TranscribeController : IDisposable
     internal void UndoForValidation() => Undo();
     internal void RenderEvidence(string path) => window.RenderEvidence(path);
     internal IReadOnlyList<TranscribeCapture> Captures => session.Captures;
-    internal TranscribeController(bool autoCopy, string folder, Action<Action> dispatch, Action<TranscribeExporter, bool> completed, Action<IReadOnlyList<TranscribeCapture>>? export = null, TranscribeSession? initialSession = null)
+    internal TranscribeController(bool autoCopy, string folder, Action<Action> dispatch, Action<TranscribeExporter, bool> completed, Action<IReadOnlyList<TranscribeCapture>>? export = null, TranscribeSession? initialSession = null, Rectangle? placement = null)
     {
         session = initialSession ?? new TranscribeSession();
         this.dispatch = dispatch; this.completed = completed;
@@ -31,12 +31,31 @@ internal sealed class TranscribeController : IDisposable
         try
         {
             input = new TranscribeInput(pointer => this.dispatch(() => HandleInput(pointer)));
+            PlaceWindow(placement);
             window.Show();
+            PanelWindow.QueueOnHost(() => PlaceWindow(placement));
             if (!Native.SetWindowDisplayAffinity(window.NativeHandle, 0x11))
                 throw new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error(), "Could not exclude Transcribe window from capture.");
             Refresh();
         }
         catch { input?.Dispose(); window.CloseAfterFinish(); overlay.Dispose(); exporter.Dispose(); throw; }
+    }
+    private void PlaceWindow(Rectangle? placement)
+    {
+        var area = Screen.FromPoint(placement?.Location ?? Cursor.Position).WorkingArea;
+        var handle = window.NativeHandle;
+        var bounds = Native.WindowBounds(handle);
+        // Adopt the target monitor's DPI before final sizing.
+        Native.SetWindowPos(handle, 0, placement?.Left ?? area.Right - bounds.Width,
+            placement?.Top ?? area.Bottom - bounds.Height, 0, 0, 0x15);
+        var dpi = Native.GetDpiForWindow(handle) / 96.0;
+        window.MaxWidth = area.Width / dpi; window.MaxHeight = area.Height / dpi;
+        window.UpdateLayout();
+        bounds = Native.WindowBounds(handle);
+        int width = Math.Min(bounds.Width, area.Width), height = Math.Min(bounds.Height, area.Height);
+        int x = Math.Clamp(placement?.Left ?? area.Right - width, area.Left, area.Right - width);
+        int y = Math.Clamp(placement?.Top ?? area.Bottom - height, area.Top, area.Bottom - height);
+        Native.SetWindowPos(handle, 0, x, y, width, height, 0x14);
     }
     private void Refresh(string? status = null) => window.Refresh(session, busy, status);
     private void Undo() { if (!busy) { session.Undo(); Refresh(); } }

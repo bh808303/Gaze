@@ -79,6 +79,7 @@ internal sealed class TrayContext : ApplicationContext
         if (transcribe != null) { transcribe.Finish(); Menu(); return; }
         if (session.State == SessionState.Idle && settings.Mode == CaptureMode.Transcribe)
         {
+            var panelBounds = panel?.LastBounds;
             panel?.Hide(); escape.Reset();
             transcribe = new TranscribeController(settings.AutoCopy, settings.Folder, Dispatch, (exporter, exported) =>
             {
@@ -86,7 +87,7 @@ internal sealed class TrayContext : ApplicationContext
                 if (exported && exporter.HasClipboardOffer) transcribeExports.Add(exporter);
                 else { try { exporter.Dispose(); } catch (Exception error) { transcribeExports.Add(exporter); Notify("Temporary ZIP retained", error.Message); } }
                 ResetPanel(); Menu();
-            });
+            }, placement: panelBounds);
             Menu(); return;
         }
         if (session.State == SessionState.Idle)

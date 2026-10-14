@@ -32,6 +32,7 @@ internal sealed class TrayPanel : IDisposable, IWin32Window
     internal void CheckCompression() => window.CheckCompression();
     internal void CheckSplitting() => window.CheckSplitting();
     internal void CheckKeyboard() => window.CheckKeyboard();
+    internal Rectangle? LastBounds => window.IsLoaded ? Native.WindowBounds(Handle) : null;
     internal void Hide() => window.Hide();
     internal void Show() => window.Show();
     internal void RunPreview(string path) => window.RunPreview(path);
