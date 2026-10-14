@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><PlatformTarget>x64</PlatformTarget></PropertyGroup>
+  <ItemGroup><Compile Include="../../src/Gaze.App/TranscribeClipboard.cs" Link="TranscribeClipboard.cs" /><Compile Include="../../src/Gaze.App/TranscribeFileDrop.cs" Link="TranscribeFileDrop.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../../src/Gaze.App/TranscribeExporter.cs" Link="TranscribeExporter.cs" /><ProjectReference Include="../../src/Gaze.Core/Gaze.Core.csproj" /></ItemGroup>
+</Project>
