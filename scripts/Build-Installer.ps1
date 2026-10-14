@@ -12,7 +12,7 @@ if (-not (Test-Path -LiteralPath $taskWix)) {
 }
 New-Item -ItemType Directory -Path $taskPayload -Force | Out-Null
 if (-not $SkipPublish) {
-    dotnet publish (Join-Path $taskRoot 'src/Gaze.App') -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:PublishSingleFile=false -p:PublishTrimmed=false -p:UseSharedCompilation=false --packages (Join-Path $taskRoot '.packages') -o $taskPayload
+    dotnet publish (Join-Path $taskRoot 'src/Gaze.App') -m:1 -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:PublishSingleFile=false -p:PublishTrimmed=false -p:UseSharedCompilation=false --packages (Join-Path $taskRoot '.packages') -o $taskPayload
     if ($LASTEXITCODE -ne 0) { throw 'Application publishing failed.' }
 }
 Copy-Item -LiteralPath $FfmpegPath -Destination (Join-Path $taskPayload 'ffmpeg.exe') -Force
@@ -57,7 +57,7 @@ Write-Payload $taskPayload
 $taskFragment = '<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"><Fragment><DirectoryRef Id="INSTALLFOLDER">' + $taskTree.ToString() + '</DirectoryRef><ComponentGroup Id="Payload">' + $taskRefs.ToString() + '</ComponentGroup></Fragment></Wix>'
 $taskFragmentPath = Join-Path $taskOutput 'Payload.wxs'
 $taskFragment | Set-Content -LiteralPath $taskFragmentPath -Encoding UTF8
-$taskMsi = Join-Path $taskOutput 'Gaze-0.4.0-alpha-win-x64.msi'
+$taskMsi = Join-Path $taskOutput 'Gaze-0.6.0-alpha-win-x64.msi'
 & $taskWix build (Join-Path $taskRoot 'installer/Package.wxs') $taskFragmentPath -arch x64 -d ('IconPath=' + (Join-Path $taskRoot 'assets/gaze-icon-states/gaze-silent.ico')) -o $taskMsi
 if ($LASTEXITCODE -ne 0) { throw 'MSI build failed.' }
 Get-FileHash -LiteralPath $taskMsi -Algorithm SHA256 | Format-List

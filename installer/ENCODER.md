@@ -10,7 +10,7 @@ for extracting the timeline. Rebuild with the updated scripts before packaging
 these features. Other codecs and
 network protocols are intentionally disabled.
 
-The installer release provides `Gaze-0.4.0-alpha-encoder-source.zip` alongside
+The installer release provides `Gaze-0.6.0-alpha-encoder-source.zip` alongside
 the MSI. It contains the full original FFmpeg and x264 source archives, their
 licenses, these instructions, both build scripts, and the actual build log,
 FFmpeg configuration files and version output. No source patches are used.
