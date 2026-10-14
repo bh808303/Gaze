@@ -9,3 +9,5 @@ Validation:
 - `dotnet run --project tests/Gaze.Tests/Gaze.Tests.csproj --no-restore -p:UseSharedCompilation=false`: exit 0, all 46 checks passed.
 - `git diff --check`: exit 0.
 - Live visual and mixed-DPI placement verification remains outstanding.
+
+Visual preview: `Gaze.App.exe --transcribe-preview <absolute PNG path>` renders the actual empty Transcribe window without input capture or settings changes. `transcribe-window-preview.png` confirms the frame fills the window without side strips; desktop positioning remains unverified.

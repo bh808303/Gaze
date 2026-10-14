@@ -6,6 +6,19 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (args.Length == 2 && args[0] == "--transcribe-preview")
+        {
+            using var context = new ApplicationContext();
+            var window = new Gaze.Fluent.TranscribeWindow(() => { }, () => { }, () => { }, () => true);
+            window.Refresh(new Gaze.Core.TranscribeSession(), false);
+            using var timer = new System.Windows.Forms.Timer { Interval = 700 };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop(); window.RenderEvidence(args[1]);
+                window.CloseAfterFinish(); context.ExitThread();
+            };
+            window.Show(); timer.Start(); TrayPanel.RunHost(context); return;
+        }
         if (args.Length == 2 && args[0] == "--transcribe-native-target")
         { TranscribeIntegrationProbe.RunTarget(args[1]); return; }
         if (args.Length == 2 && args[0] == "--transcribe-integration-probe")
