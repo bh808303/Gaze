@@ -5,6 +5,27 @@
  Title="Gaze · Transcribe" Width="332.35" Height="540" MinWidth="0" MinHeight="0" WindowStyle="None" ResizeMode="NoResize"
  ShowInTaskbar="True" Topmost="False" WindowStartupLocation="Manual" Style="{DynamicResource DefaultFluentWindowStyle}">
  <ui:FluentWindow.Template><ControlTemplate TargetType="{x:Type ui:FluentWindow}"><AdornerDecorator><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/></AdornerDecorator></ControlTemplate></ui:FluentWindow.Template>
+ <ui:FluentWindow.Resources>
+  <Style x:Key="FinishButtonStyle" TargetType="Button">
+   <Setter Property="Background" Value="#B50F21"/>
+   <Setter Property="Foreground" Value="White"/>
+   <Setter Property="BorderBrush" Value="#B50F21"/>
+   <Setter Property="BorderThickness" Value="1"/>
+   <Setter Property="Padding" Value="12,7"/>
+   <Setter Property="Template">
+    <Setter.Value><ControlTemplate TargetType="Button">
+     <Border x:Name="ButtonFrame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+      <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+     </Border>
+     <ControlTemplate.Triggers>
+      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonFrame" Property="Background" Value="#960C1B"/></Trigger>
+      <Trigger Property="IsPressed" Value="True"><Setter TargetName="ButtonFrame" Property="Background" Value="#780A16"/></Trigger>
+      <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ButtonFrame" Property="Opacity" Value="0.5"/></Trigger>
+     </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value>
+   </Setter>
+  </Style>
+ </ui:FluentWindow.Resources>
  <Border Width="391" Height="635.2941176" Background="#F7F9FC" BorderBrush="#E4E7EC" BorderThickness="1" CornerRadius="12">
   <Border.LayoutTransform><ScaleTransform ScaleX="0.85" ScaleY="0.85"/></Border.LayoutTransform>
   <Grid>
@@ -12,7 +33,7 @@
    <Grid>
     <Border Background="#12080B" CornerRadius="12,12,0,0"/>
     <Image Source="Assets/gaze-header.png" Stretch="Uniform" VerticalAlignment="Top" MouseLeftButtonDown="HeaderDrag" AutomationProperties.Name="Gaze — Into the abyss"/>
-    <ui:Button Content="×" ToolTip="Close session" AutomationProperties.Name="Close session" Click="CloseClick" Width="30" Height="30" Padding="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,12,0" Background="#210E13" BorderBrush="#63202D" Foreground="#ECDADF"/>
+    <ui:Button x:Name="CloseButton" Content="×" ToolTip="Done" AutomationProperties.Name="Finish session" Click="CloseClick" Width="30" Height="30" Padding="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,12,0" Background="#210E13" BorderBrush="#63202D" Foreground="#ECDADF"/>
    </Grid>
    <Grid Grid.Row="1" Margin="11.7647,12">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -25,7 +46,7 @@
    </Grid>
    <Grid Grid.Row="2" Margin="11.7647,0,11.7647,12"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
     <ui:Button x:Name="UndoButton" Content="Undo" Click="UndoClick" HorizontalAlignment="Stretch" Margin="0,0,6,0"/>
-    <ui:Button x:Name="DoneButton" Grid.Column="1" Content="Done" Click="DoneClick" HorizontalAlignment="Stretch" Margin="0,0,6,0" Background="#B50F21" Foreground="White"/>
+    <Button x:Name="DoneButton" Style="{StaticResource FinishButtonStyle}" Grid.Column="1" Content="Done" Click="DoneClick" HorizontalAlignment="Stretch" Margin="0,0,6,0"/>
     <ui:Button x:Name="CancelButton" Grid.Column="2" Content="Cancel" Click="CancelClick" HorizontalAlignment="Stretch"/>
    </Grid>
   </Grid>

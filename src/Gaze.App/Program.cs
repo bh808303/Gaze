@@ -6,6 +6,21 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (args.Length == 2 && args[0] == "--transcribe-ui-check")
+        {
+            int finished = 0;
+            var window = new Gaze.Fluent.TranscribeWindow(() => { }, () => finished++,
+                () => throw new InvalidOperationException("UI check discarded captures."),
+                () => throw new InvalidOperationException("Cross opened the close prompt."));
+            try
+            {
+                window.CheckFinishActions(() => finished);
+                File.WriteAllText(args[1], "PASS: cross and Done both finish without cancel or close prompt.");
+            }
+            catch (Exception error) { File.WriteAllText(args[1], error.ToString()); Environment.ExitCode = 1; }
+            finally { window.CloseAfterFinish(); }
+            return;
+        }
         if (args.Length == 2 && args[0] == "--transcribe-preview")
         {
             using var context = new ApplicationContext();

@@ -1,0 +1,1 @@
+PASS: cross and Done both finish without cancel or close prompt.

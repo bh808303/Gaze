@@ -59,6 +59,7 @@ internal sealed class TranscribeController : IDisposable
     }
     private void Refresh(string? status = null) => window.Refresh(session, busy, status);
     private void Undo() { if (!busy) { session.Undo(); Refresh(); } }
+    internal void ShowWindow() { if (!disposed) window.BringToFront(); }
     internal void Finish()
     {
         if (disposed || busy || closing) return;

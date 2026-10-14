@@ -44,7 +44,11 @@ internal sealed class TrayContext : ApplicationContext
         RememberForeground();
         tray.MouseClick += (_, e) =>
         {
-            if (e.Button == MouseButtons.Left) Guard(() => Shortcut(fromTray: true));
+            if (e.Button == MouseButtons.Left) Guard(() =>
+            {
+                if (transcribe != null) transcribe.ShowWindow();
+                else Shortcut(fromTray: true);
+            });
             else if (e.Button == MouseButtons.Right) Gaze.Fluent.PanelWindow.QueueOnHost(() => Guard(OpenPanel));
         };
         tray.BalloonTipClicked += (_, _) => { if (lastFile != null) OpenFolder(); };
