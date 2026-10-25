@@ -19,3 +19,8 @@ All four implementation slices passed fresh independent Factory review: B01 acce
 The optional extension of configured-folder Clear to PNG/ZIP was raised after discovering its current MP4-only filter. No answer received during this run; preserve existing Clear behavior rather than broaden deletion scope. Automatic temporary Transcribe cleanup preserves all configured saved files.
 
 Follow-up: human has now answered "Include PNG and ZIP alongside MP4, with confirmation". Prior pending notes are superseded. Factory task B05 implements AC11; see clear-saved-files.md. Existing B01-B04 work and checks remain accepted.
+
+## B05 supersedes pending Clear choice
+Human approved PNG and ZIP alongside MP4, with confirmation. Implemented exact case-insensitive top-level extension selection, default-No count/types/folder confirmation and injected recycling tests. Any earlier MP4-only/pending-choice statement in this file is historical and superseded. Automatic temp cleanup and gallery/video behavior are unchanged. See B05 verification and raw evidence in docs/factory/runs/20261025-134958-805. Independent B05 review remains a separate gate.
+
+B05 completed and independently reviewed: `20261025-134958-805`. All mandatory checks passed. Saved-folder Clear choice resolved and implemented; task manifest exhausted again.

@@ -3,7 +3,8 @@
     "B01",
     "B02",
     "B03",
-    "B04"
+    "B04",
+    "B05"
   ],
   "checks": [
     "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
@@ -13,19 +14,5 @@
     "git diff --check; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
     "dotnet run --project tests/Gaze.Clipboard.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
   ],
-  "tasks": [
-    {
-      "id": "B05",
-      "description": "Follow-up explicitly approved by human: Include PNG and ZIP alongside MP4, with confirmation. Read docs/factory/batches/spec.md AC11 and clear-saved-files.md. Extend configured-folder Clear to top-level MP4, PNG and ZIP (case-insensitive exact extensions), preserving other extensions and nested files. Keep confirmation BEFORE recycling anything, show count/types/folder, default No; cancellation/missing/empty folder causes no changes. Use a small testable selection/confirmation operation with injected confirm/recycle callbacks, wire TrayContext.Cleanup to it. No automatic deletion in tests; fake recycling records paths. Preserve video behavior, existing Recycle Bin use/path containment and lastFile refresh. Do not expand recordings gallery or change temp cleanup. TDD behavioral RED before behavior implementation; compiling scaffold allowed, missing APIs alone is insufficient RED. Return individual evidence FILE paths. Worker BuildInParallel=false environment and cached serial builds avoid sandbox restore issues; do not change mandatory commands. Update docs/README and replace or clearly supersede pending Clear choice in plan/review/verification. All code and evidence stay in this repository; no commit, merge/deploy, actual user-file deletion or real clipboard mutation.",
-      "acceptanceCriteria": [
-        "Meaningful behavioral RED then GREEN proves exact top-level MP4/PNG/ZIP inclusion, case-insensitivity, exclusion of other files/nested files, empty/missing-folder no-op, cancel invokes no recycling and confirmed action receives only eligible paths. Test uses temp fixtures and injected recycle callback, never actual user files or Recycle Bin.",
-        "Actual Clear callback uses the tested operation, confirmation names selected types/count/folder and defaults No before any deletion; uses Recycle Bin and preserves existing containment and recording refresh behavior. No video capture/export or temp-cleanup changes.",
-        "All existing mandatory checks pass. Documentation accurately records confirmed extension and final verification with raw evidence; previous pending choice resolved. No unrelated cleanup/refactor."
-      ],
-      "testCommand": "dotnet run --project tests/Gaze.Tests",
-      "dependsOn": [
-        "B04"
-      ]
-    }
-  ]
+  "tasks": []
 }

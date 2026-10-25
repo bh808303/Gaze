@@ -52,3 +52,20 @@ README, docs/transcribe.md and CHANGELOG now describe the final Start/capture/pa
 
 ## Parent completion
 All four Factory independent reviews passed; see review.md for run IDs, final scope review and remaining runtime gaps. Supplementary ZIP-success mutation was caught by tests; exact source restored and full clipboard suite passed locally (parent-mutation-green-local.txt, exit 0, real clipboard sequence unchanged). Local output includes the adjacent Gaze build's existing FFmpeg dependency; source unchanged. Configured-folder Clear remains MP4-only pending the optional extension choice; temporary cleanup preserves saved files.
+
+## B05 supersedes pending Clear choice
+Human approved PNG and ZIP alongside MP4, with confirmation. Implemented exact case-insensitive top-level extension selection, default-No count/types/folder confirmation and injected recycling tests. Any earlier MP4-only/pending-choice statement in this file is historical and superseded. Automatic temp cleanup and gallery/video behavior are unchanged. See B05 verification and raw evidence in docs/factory/runs/20261025-134958-805. Independent B05 review remains a separate gate.
+
+## B05 final verification (2026-10-25)
+Evidence root: docs/factory/runs/20261025-134958-805. Commands ran at repository root with BuildInParallel=false; installed Python 3.14 directory prepended to PATH for the unchanged Python command.
+
+- clear-red.txt: dotnet run --project tests/Gaze.Tests, exit 1, compiled behavioral failure before extension implementation. Compiling scaffold copied the existing MP4-only selection/confirmation/containment behavior. Confirmation reported one recording and omitted MP4/PNG/ZIP scope, instead of the required six eligible mixed-case files.
+- clear-green.txt: first implementation run, exit 1. Exposed a fixture error: Windows treats names differing only by case as the same file. Corrected fixture basenames to be distinct, retaining all extension/case assertions. No production relaxation.
+- clear-green-final.txt: exact required core command, exit 0. Fake recycling records paths; tests assert confirmation before any recycling, exact eligible set, exclusions/nesting, cancel and missing/empty/blank no-op, and fixture files remain intact. Only isolated fixture teardown deletes test-created data.
+- cached-debug.txt: serial cached app build, exit 0, zero warnings/errors.
+- debug.txt and release.txt: unchanged mandatory Build.ps1 commands, both exit 0, including core tests.
+- settings.txt: unchanged mandatory settings command, exit 0.
+- python.txt: unchanged mandatory Python timeline command, exit 0, five tests.
+- diff-check.txt: git diff --check, exit 0.
+
+TrayContext.Cleanup calls the tested operation with the existing Recycle Bin callback. Source review verifies default No (MessageBoxDefaultButton.Button2), existing idle/reentry guard, parent-path containment, lastFile refresh and recordings refresh. No capture/export, gallery or temp-cleanup code changes. No refactor beyond extracting this operation was needed. Native confirmation/Recycling was not exercised interactively; no actual user-file deletion or clipboard mutation, commit, merge or deployment. Independent review is still a subsequent gate.
