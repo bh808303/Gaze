@@ -14,11 +14,14 @@ public partial class TranscribeWindow : FluentWindow
     private readonly Func<bool> requestClose;
     private bool closing;
     private TranscribeCapture? displayed;
-    public TranscribeWindow(Action undo, Action finish, Func<bool> requestClose, Action nextBatch, Action retry)
+    public TranscribeWindow(Action undo, Action finish, Func<bool> requestClose, Action nextBatch, Action retry, TranscribeTrigger trigger = TranscribeTrigger.MiddleMouse)
     {
         PanelWindow.EnsureHostApplication();
         this.undo = undo; this.finish = finish; this.nextBatch = nextBatch; this.retry = retry; this.requestClose = requestClose;
         InitializeComponent();
+        TriggerHelp.Text = trigger == TranscribeTrigger.PrintScreen
+            ? "Tap/release Print Screen for the window under pointer. Hold and move for an area. Esc cancels selection.\nScreenshots copy as a batch. ZIP packages this batch."
+            : "Middle-click the window under pointer, or middle-drag an area.\nScreenshots copy as a batch. ZIP packages this batch.";
         System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(this);
         Closing += (_, e) =>
         {
@@ -27,6 +30,7 @@ public partial class TranscribeWindow : FluentWindow
             Dispatcher.BeginInvoke(() => this.requestClose());
         };
     }
+    public string TriggerInstructions => TriggerHelp.Text;
     public string ClipboardStatus => StatusText.Text;
     public string BatchSummary => CountText.Text;
     public bool ZipEnabled => DoneButton.IsEnabled;

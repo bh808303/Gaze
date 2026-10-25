@@ -101,6 +101,7 @@ public partial class PanelWindow : FluentWindow
         AutoCopy.IsChecked = options.AutoCopy; Clicks.IsChecked = options.ClickHighlight; DoubleEscape.IsChecked = options.DoubleEscape;
         Fps.SelectedItem = options.FrameRate; Canvas.SelectedIndex = (int)options.Canvas; Canvas.IsEnabled = options.Mode == CaptureMode.Window;
         Compression.SelectedIndex = (int)options.Compression;
+        CaptureTrigger.SelectedIndex = (int)options.TranscribeTrigger;
         SplitAt29Mb.IsChecked = false; SplitAt29Mb.IsChecked = options.SplitAt29Mb;
         KeyboardTimeline.IsChecked = options.KeyboardTimeline;
         RecordTimelineMetadata.IsChecked = options.RecordTimelineMetadata;
@@ -151,6 +152,26 @@ public partial class PanelWindow : FluentWindow
         var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
         timer.Tick += (_, _) => { timer.Stop(); Render(path); File.WriteAllText(path + ".state.json", System.Text.Json.JsonSerializer.Serialize(new { AutoCopy = AutoCopy.IsChecked, SplitAt29Mb = SplitAt29Mb.IsChecked, ClickHighlight = Clicks.IsChecked, DoubleEscape = DoubleEscape.IsChecked, Expected = getOptions() })); disposing = true; System.Windows.Application.Current.Shutdown(); };
         timer.Start(); System.Windows.Application.Current.Run(this);
+    }
+    public void CheckTranscribeTrigger(string evidence)
+    {
+        foreach (var trigger in new[] { TranscribeTrigger.PrintScreen, TranscribeTrigger.MiddleMouse })
+        {
+            EditSettings();
+            if (CaptureTrigger.Items.Count != 2) throw new InvalidOperationException("Expected exactly two capture triggers.");
+            CaptureTrigger.SelectedIndex = (int)trigger; SaveClick(this, new RoutedEventArgs()); EditSettings();
+            if (getOptions().TranscribeTrigger != trigger || CaptureTrigger.SelectedIndex != (int)trigger)
+                throw new InvalidOperationException("Trigger save/reload failed through actual panel mapping.");
+            Render(Path.Combine(evidence, $"settings-{trigger}.png"));
+            CaptureTrigger.SelectedIndex = 1 - (int)trigger; CancelSettingsClick(this, new RoutedEventArgs()); EditSettings();
+            if (getOptions().TranscribeTrigger != trigger || CaptureTrigger.SelectedIndex != (int)trigger)
+                throw new InvalidOperationException("Trigger cancel changed persisted selection.");
+            CheckCompression();
+            Mode.SelectedIndex = (int)CaptureMode.Transcribe;
+            Mode.SelectedIndex = (int)CaptureMode.Window;
+            if (getOptions().TranscribeTrigger != trigger) throw new InvalidOperationException("Unrelated settings/mode lost trigger.");
+        }
+        Home();
     }
     public void CheckCompression()
     {
@@ -258,6 +279,8 @@ public partial class PanelWindow : FluentWindow
             var options = getOptions(); options.Folder = Path.GetFullPath(Folder.Text); options.Modifiers = modifiers; options.Key = key; options.FrameRate = (int)fps;
             options.AutoCopy = AutoCopy.IsChecked == true; options.ClickHighlight = Clicks.IsChecked == true; options.DoubleEscape = DoubleEscape.IsChecked == true; options.Canvas = (WindowCanvasMode)Canvas.SelectedIndex;
             if (Compression.SelectedIndex < 0) throw new InvalidOperationException("Choose a compression mode.");
+            if (CaptureTrigger.SelectedIndex < 0) throw new InvalidOperationException("Choose a Transcribe trigger.");
+            options.TranscribeTrigger = (TranscribeTrigger)CaptureTrigger.SelectedIndex;
             options.Compression = (CompressionMode)Compression.SelectedIndex;
             options.SplitAt29Mb = SplitAt29Mb.IsChecked == true;
             options.KeyboardTimeline = KeyboardTimeline.IsChecked == true;

@@ -36,3 +36,5 @@ Fix: skip PlaceWindow when disposed/closing, mark disposed before close/construc
 Resume original Factory outer mandatory checks and a fresh read-only review from base 0d39b16. New current trigger probe is added to mandatory checks (strengthening the gate). Settings choice is still PS02; no merge/push/main changes yet.
 
 PS01 accepted: fresh review PS01-review.json in 20261025-162245-355 confirms all seven mandatory checks, mutation sensitivity, controller integration and crash-regression fix. The parent manifest change is authorized orchestration; earlier role-confusion report is preserved. Proceed to PS02. Normal OS behavior still requires interactive testing; no claims of native validation.
+
+PS02 complete: both setting surfaces, persistence/mappings, host snapshot and selected hints implemented. Seven mandatory checks pass. Original review requested stronger behavioral RED; contained retrospective Save baseline failed exit 1, restored GREEN passed exit 0 with identical source hash. Fresh parent-launched read-only review PASS: docs/factory/runs/20261025-164118-173/PS02-review-repair.json. No native physical input claim. Local feature branch only.

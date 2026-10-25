@@ -38,7 +38,7 @@
    <Grid Grid.Row="1" Margin="11.7647,12">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <TextBlock Text="Transcribe" FontSize="20" FontWeight="SemiBold" Foreground="#101828"/>
-    <TextBlock Grid.Row="1" Text="Middle-click a window, or middle-drag an area.&#10;Screenshots copy as a batch. ZIP packages this batch." TextWrapping="Wrap" Foreground="#667085" Margin="0,8,0,12"/>
+    <TextBlock x:Name="TriggerHelp" Grid.Row="1" Text="Middle-click a window, or middle-drag an area.&#10;Screenshots copy as a batch. ZIP packages this batch." TextWrapping="Wrap" Foreground="#667085" Margin="0,8,0,12"/>
     <Border Grid.Row="2" Background="White" BorderBrush="#E4E7EC" BorderThickness="1" CornerRadius="10" Padding="8">
      <Grid><TextBlock x:Name="Empty" Text="No captures yet" Foreground="#98A2B3" HorizontalAlignment="Center" VerticalAlignment="Center"/><Image x:Name="Thumbnail" Stretch="Uniform" AutomationProperties.Name="Latest capture"/></Grid>
     </Border>

@@ -1,5 +1,9 @@
 # Changelog
 
+## Transcribe trigger — 2026-10-25
+
+- Add a persisted exclusive Middle mouse / Print Screen Transcribe trigger, both settings surfaces, selected-session hints, and controlled save/cancel/routing regression evidence. Native Snipping and physical multi-monitor checks remain deferred.
+
 ## Live Transcribe batches — 2026-10-25
 
 - Extend configured-folder Clear to top-level MP4, PNG and ZIP files with a default-No confirmation before moving them to the Recycle Bin; preserve other files and subfolders.

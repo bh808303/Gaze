@@ -1,6 +1,7 @@
 {
   "completedTaskIds": [
-    "PS01"
+    "PS01",
+    "PS02"
   ],
   "checks": [
     "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
@@ -11,19 +12,5 @@
     "dotnet run --project tests/Gaze.Clipboard.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
     "dotnet artifacts/app/Gaze.App.dll --transcribe-trigger-probe docs/factory/runs/printscreen-gate; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
   ],
-  "tasks": [
-    {
-      "id": "PS02",
-      "description": "Read docs/factory/printscreen/spec.md and PS01 handoff. Wire the exclusive persisted trigger into Settings validation/default, PanelOptions and EVERY TrayPanel mapping, WPF and WinForms UI/save/cancel, TrayContext new-session snapshot and selected-trigger session instructions. Options only Middle mouse and Print Screen; old settings remain MMB. Add meaningful default/roundtrip/save/cancel/routing regression RED BEFORE production wiring. Actual WPF probe/render if feasible; avoid modifying actual user settings or real clipboard, startup registry and keys. User semantics: tap/release captures window under pointer on any monitor; hold PrintScreen and move pointer selects clipped area; MMB does not capture when PrintScreen selected and vice versa. Document in README/docs/transcribe.md/changelog and docs/factory/printscreen/verification.md; record deferred real Windows Snipping/physical-input/multi-monitor checks accurately. Preserve main compact tray, placement, window style, Clear and all video/batch behavior. Return individual FILE evidencePaths. Worker env BuildInParallel=false, cached serial builds as needed; do not change checks/manifest/commit/push. PS01 was accepted by fresh review with clarified parent orchestration after user crash report. Read build.md. Parent added the mandatory trigger probe; no worker manifest change. New trigger probe uses installHooks:false, per-process crash-dialog suppression and fail-logged exception capture. Keep this containment; do not run crash-inducing mutations or physical input probes on the desktop without need. Rapid-close PlaceWindow race is fixed and regression-tested. Use injected routing to validate selected trigger. Actual native Snipping and physical multi-monitor support are deferred tests, not reason to block implementation. EvidencePaths must be individual files, not directories. Readable render of both option choices/session hints required where feasible.",
-      "acceptanceCriteria": [
-        "Default/validation/persistence and actual setting surfaces cover both trigger choices; Save applies and Cancel discards in both UI paths, independent unrelated setting/mode changes retain trigger. Actual host snapshots selected value and panel help matches. Meaningful behavioral RED then GREEN recorded.",
-        "Native/injected integration tests prove selected input reaches controller correctly and nonselected input is normal, tap captures on release, held pointer drag selects area, repeats/cancel/close cannot duplicate or leak selection. Run feasible controlled UI probes and render settings/instructions; no physical/native suppression claims from only unit tests.",
-        "All mandatory checks pass. User docs accurately explain both exclusive triggers, under-pointer monitor targeting, clipped rectangles, modified shortcut behavior and restoration outside Transcribe. Update verification with commands/exit/evidence and remaining native gaps."
-      ],
-      "testCommand": "dotnet run --project tests/Gaze.Settings.Tests",
-      "dependsOn": [
-        "PS01"
-      ]
-    }
-  ]
+  "tasks": []
 }

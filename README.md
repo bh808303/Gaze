@@ -107,3 +107,5 @@ The default menu shows recording controls, status, and capture mode. The header 
 
 Visual checks: use `--panel-preview <PNG path> --check-navigation` for navigation checks, `--preview-recordings` for the recordings panel, or `--preview-settings` for settings. Preview uses an isolated sign-in startup value and does not access the Windows startup registry.
 
+
+Transcribe offers an exclusive **Middle mouse** (default) or **Print Screen** trigger in Settings. Tap/release captures the window under the pointer on any monitor; hold and move selects an area clipped to the starting monitor. Modified shortcuts retain their behavior; Print Screen follows its normal path outside Transcribe and in Middle mouse mode. See [Transcribe controls and native validation limits](docs/transcribe.md).

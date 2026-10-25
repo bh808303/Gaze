@@ -38,7 +38,7 @@ internal sealed class TranscribeController : IDisposable
         exporter = new TranscribeExporter(true, folder);
         flow = new TranscribeBatchFlow(session, publish ?? exporter.PublishBatch,
             export ?? (captures => exporter.PublishBatchZip(captures, claudeDesktopClipboard)), Complete);
-        window = new TranscribeWindow(Undo, Finish, RequestClose, NextBatch, RetryClipboard);
+        window = new TranscribeWindow(Undo, Finish, RequestClose, NextBatch, RetryClipboard, trigger);
         try
         {
             Action<TranscribePointer> queue = pointer => this.dispatch(() => HandleInput(pointer));

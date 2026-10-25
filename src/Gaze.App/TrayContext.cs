@@ -90,7 +90,7 @@ internal sealed class TrayContext : ApplicationContext
                 transcribe = null; escape.Reset();
                 transcribeExports.Add(exporter);
                 ResetPanel(); Menu();
-            }, claudeDesktopClipboard: settings.SplitAt29Mb, placement: panelBounds);
+            }, claudeDesktopClipboard: settings.SplitAt29Mb, placement: panelBounds, trigger: settings.TranscribeTrigger);
             Menu(); return;
         }
         if (session.State == SessionState.Idle)
