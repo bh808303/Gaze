@@ -8,14 +8,13 @@ internal static class Program
         ApplicationConfiguration.Initialize();
         if (args.Length == 2 && args[0] == "--transcribe-ui-check")
         {
-            int finished = 0;
-            var window = new Gaze.Fluent.TranscribeWindow(() => { }, () => finished++,
-                () => throw new InvalidOperationException("UI check discarded captures."),
-                () => throw new InvalidOperationException("Cross opened the close prompt."));
+            int zipped = 0, closed = 0;
+            var window = new Gaze.Fluent.TranscribeWindow(() => { }, () => zipped++,
+                () => { closed++; return true; }, () => { }, () => { });
             try
             {
-                window.CheckFinishActions(() => finished);
-                File.WriteAllText(args[1], "PASS: cross and Done both finish without cancel or close prompt.");
+                window.CheckBatchActions(() => zipped, () => closed);
+                File.WriteAllText(args[1], "PASS: restore keeps capture active; cross closes without ZIP, ZIP exports explicitly.");
             }
             catch (Exception error) { File.WriteAllText(args[1], error.ToString()); Environment.ExitCode = 1; }
             finally { window.CloseAfterFinish(); }
@@ -24,7 +23,7 @@ internal static class Program
         if (args.Length == 2 && args[0] == "--transcribe-preview")
         {
             using var context = new ApplicationContext();
-            var window = new Gaze.Fluent.TranscribeWindow(() => { }, () => { }, () => { }, () => true);
+            var window = new Gaze.Fluent.TranscribeWindow(() => { }, () => { }, () => true, () => { }, () => { });
             window.Refresh(new Gaze.Core.TranscribeSession(), false);
             using var timer = new System.Windows.Forms.Timer { Interval = 700 };
             timer.Tick += (_, _) =>
@@ -34,6 +33,8 @@ internal static class Program
             };
             window.Show(); timer.Start(); TrayPanel.RunHost(context); return;
         }
+        if (args.Length == 2 && args[0] == "--transcribe-batch-controller-probe")
+        { TranscribeBatchControllerProbe.Run(args[1]); return; }
         if (args.Length == 2 && args[0] == "--transcribe-native-target")
         { TranscribeIntegrationProbe.RunTarget(args[1]); return; }
         if (args.Length == 2 && args[0] == "--transcribe-integration-probe")
@@ -151,6 +152,8 @@ internal static class Program
         if (!first) { MessageBox.Show("Gaze is already running in the system tray.", "Gaze"); return; }
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
         { MessageBox.Show("Gaze requires Windows 10 version 2004 or later.", "Gaze"); return; }
+        foreach (var error in TranscribeBatchPublisher.CleanupStale(TranscribeExporter.LiveRoot))
+            System.Diagnostics.Trace.WriteLine("Transcribe startup cleanup: " + error);
         try { using var context = new TrayContext(); TrayPanel.RunHost(context); }
         catch (Exception e) { MessageBox.Show(e.ToString(), "Gaze could not start", MessageBoxButtons.OK, MessageBoxIcon.Error); }
     }

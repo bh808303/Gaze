@@ -7,7 +7,7 @@ using Gaze.Core;
 
 namespace Gaze.App;
 
-// Opt-in native acceptance harness. Own fixture process, folder route, no clipboard
+// Opt-in native acceptance harness. Own fixture process, injected live clipboard, no real clipboard
 // publication or real settings writes. Restores the pointer and closes its fixture.
 internal static class TranscribeIntegrationProbe
 {
@@ -33,7 +33,7 @@ internal static class TranscribeIntegrationProbe
     {
         evidence = Path.GetFullPath(evidence); Directory.CreateDirectory(evidence);
         var log = new List<string> { $"OS: {Environment.OSVersion}; runtime: {Environment.Version}; monitors: {Screen.AllScreens.Length}" };
-        var folder = Path.Combine(evidence, "exports");
+        var folder = Path.Combine(evidence, "exports"); Directory.CreateDirectory(folder);
         using var messages = new Control(); _ = messages.Handle;
         using var target = Process.Start(new ProcessStartInfo(Environment.ProcessPath!) { ArgumentList = { "--transcribe-native-target", evidence }, UseShellExecute = false })!;
         TranscribeController? controller = null;
@@ -45,30 +45,21 @@ internal static class TranscribeIntegrationProbe
             var clock = Stopwatch.StartNew();
             while (!ready()) { if (clock.Elapsed > TimeSpan.FromSeconds(15)) throw new Exception("Timeout: " + name); await Task.Delay(50); }
         }
-        bool ChooseClose(TranscribeController value, string label)
-        {
-            bool chosen = false;
-            using var timer = new System.Windows.Forms.Timer { Interval = 100 };
-            timer.Tick += (_, _) =>
-            {
-                var dialog = Application.OpenForms.Cast<Form>().FirstOrDefault(form => form.Text == "Finish this Transcribe session?");
-                if (dialog == null) return;
-                timer.Stop();
-                var button = dialog.Controls.OfType<Button>().Single(item => item.Text == label);
-                chosen = true; button.PerformClick();
-            };
-            timer.Start();
-            var result = value.RequestClose();
-            if (!chosen) throw new Exception("Expected native close prompt was not shown");
-            return result;
-        }
+        System.Runtime.InteropServices.ComTypes.IDataObject? clipboard = null;
+        using var publisher = new TranscribeBatchPublisher(Path.Combine(evidence, "staging"),
+            data => { clipboard = data; return 0; }, data => ReferenceEquals(clipboard, data) ? 0 : 1,
+            () => { clipboard = null; return 0; });
+        TranscribeController NewController(bool autoCopy, string targetFolder, Action<Action> dispatch,
+            Action<TranscribeExporter, bool> complete, Action<IReadOnlyList<TranscribeCapture>>? export = null,
+            TranscribeSession? initial = null) => new(autoCopy, targetFolder, dispatch, complete,
+                export ?? (captures => publisher.PublishZip(captures, true)), initial, publish: publisher.Publish);
         async void Check()
         {
             try
             {
                 await Wait(() => File.Exists(Path.Combine(evidence, "fixture.json")), "target startup");
                 var fixture = JsonSerializer.Deserialize<Fixture>(File.ReadAllText(Path.Combine(evidence, "fixture.json")))!;
-                controller = new TranscribeController(false, folder, Dispatch, (result, exported) => { exporter = result; log.Add("Session completed, exported=" + exported); });
+                controller = NewController(false, folder, Dispatch, (result, exported) => { exporter = result; log.Add("Session completed, exported=" + exported); });
                 await Task.Delay(500);
                 controller.RenderEvidence(Path.Combine(evidence, "empty-window.png"));
                 var inside = new Point(fixture.X + 100, fixture.Y + 120);
@@ -127,7 +118,7 @@ internal static class TranscribeIntegrationProbe
                 log.Add("PASS Undo retains first window capture");
                 controller.Finish();
                 await Wait(() => exporter != null, "Finish export");
-                var zipPath = exporter!.SavedPath ?? throw new Exception("No saved ZIP");
+                var zipPath = ((System.Windows.Forms.DataObject)clipboard!).GetFileDropList().Cast<string>().Single();
                 using (var zip = ZipFile.OpenRead(zipPath))
                 {
                     var png = zip.Entries.Single(entry => entry.Name.EndsWith(".png"));
@@ -141,9 +132,10 @@ internal static class TranscribeIntegrationProbe
                 SetCursorPos(inside.X, inside.Y); mouse_event(0x20, 0, 0, 0, 0); mouse_event(0x40, 0, 0, 0, 0);
                 await Wait(() => File.Exists(Path.Combine(evidence, "middle-received.txt")), "middle-button after teardown");
                 log.Add("PASS middle-button consumed during session and restored to target after Finish");
+                if (exporter == null) throw new Exception("ZIP completion callback missing");
                 exporter.Dispose(); exporter = null; controller = null;
                 bool reentrantCompletion = false, callbackActive = false;
-                controller = new TranscribeController(false, folder, Dispatch, (result, _) =>
+                controller = NewController(false, folder, Dispatch, (result, _) =>
                 {
                     if (callbackActive) reentrantCompletion = true;
                     result.Dispose();
@@ -164,35 +156,37 @@ internal static class TranscribeIntegrationProbe
                 log.Add("PASS injected export callback cannot Cancel, close or reenter Finish during export");
                 var retained = new TranscribeSession(); retained.AddCapture(retainedPng, "close fixture");
                 int exportAttempts = 0; bool closeCompleted = false;
-                controller = new TranscribeController(false, folder, Dispatch, (result, _) => { result.Dispose(); closeCompleted = true; }, _ =>
+                controller = NewController(false, folder, Dispatch, (result, _) => { result.Dispose(); closeCompleted = true; }, _ =>
                 {
                     if (++exportAttempts == 1) throw new IOException("Injected export failure");
                 }, retained);
-                if (ChooseClose(controller, "Keep capturing") || controller.Count != 1 || closeCompleted) throw new Exception("Keep capturing closed/discarded batch");
-                if (ChooseClose(controller, "Finish") || closeCompleted || controller.Count != 1 || retained.State != TranscribeState.ExportFailed)
+                controller.Finish();
+                if (closeCompleted || controller.Count != 1)
                     throw new Exception("Failed Finish allowed close or lost batch");
                 controller.RenderEvidence(Path.Combine(evidence, "retry-window.png"));
                 controller.Finish();
                 if (!closeCompleted || exportAttempts != 2) throw new Exception("Retry did not finish retained batch");
                 controller = null;
-                log.Add("PASS real close dialog Keep capturing and failed Finish retain batch; Retry finishes and closes");
+                log.Add("PASS failed ZIP retains open batch; explicit ZIP retry publishes current batch and closes");
                 var discardBatch = new TranscribeSession(); discardBatch.AddCapture(retainedPng, "discard fixture");
                 bool discarded = false;
-                controller = new TranscribeController(false, folder, Dispatch, (result, exported) =>
+                controller = NewController(false, folder, Dispatch, (result, exported) =>
                 { if (exported) throw new Exception("Discard marked exported"); result.Dispose(); discarded = true; }, _ => throw new Exception("Discard exported"), discardBatch);
-                if (!ChooseClose(controller, "Discard") || !discarded || discardBatch.Count != 0) throw new Exception("Discard did not close/release batch");
+                if (!controller.RequestClose() || !discarded || discardBatch.Count != 1) throw new Exception("X did not close while preserving batch");
                 controller = null;
-                log.Add("PASS real close dialog Discard clears batch and closes without export");
+                log.Add("PASS X closes without prompt or export and preserves batch");
                 for (int i = 0; i < 2; i++)
                 {
                     bool finished = false;
-                    controller = new TranscribeController(false, folder, Dispatch, (result, _) => { result.Dispose(); finished = true; });
+                    controller = NewController(false, folder, Dispatch, (result, _) => { result.Dispose(); finished = true; });
                     controller.Finish();
-                    if (!finished) throw new Exception("Empty session did not close");
+                    if (finished) throw new Exception("Empty ZIP closed session");
+                    controller.RequestClose();
+                    if (!finished) throw new Exception("Empty X did not close");
                     controller = null;
                 }
-                if (Directory.GetFiles(folder, "*.zip").Length != 1) throw new Exception("Empty session exported a ZIP");
-                log.Add("PASS repeated start/empty Finish releases hooks and creates no extra ZIP");
+                if (Directory.GetFiles(folder, "*.zip").Length != 0) throw new Exception("Empty session exported a ZIP");
+                log.Add("PASS repeated start/empty ZIP disabled; X releases hooks without saved ZIP");
                 log.Add("UNTESTED: multi-monitor/mixed DPI; tray-host quit routing, clipboard integrated export, video regression");
                 Environment.ExitCode = 0;
             }

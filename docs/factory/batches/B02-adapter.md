@@ -1,0 +1,13 @@
+# B02 adapter contract
+
+`TranscribeBatchPublisher` is the app-lifetime live clipboard adapter. It does not reference a panel or session, does not subscribe to application events, and does not replace the historical `TranscribeExporter`/probe APIs. B03 must retain it beyond session/panel closure and dispose it only at application exit.
+
+All publisher calls must run on the existing pumping `TranscribeClipboardOwner` STA. Construct with an app-owned temporary root and injected OLE publish/current/clear delegates (HRESULT semantics: current=0 owned, 1 overwritten, negative=error). The delegates must publish synchronously and return failure without replacing clipboard contents. The optional writer is for failure injection. The publisher never writes the configured saved-file folder.
+
+- `Publish(session.Captures)` stages and publishes the full current ordered PNG snapshot, regardless of previous clipboard ownership. Call after accepted capture, Undo, Next Batch, and clipboard retry. Empty snapshots clear only the publisher's exact owned IDataObject. An empty first session makes no clipboard change.
+- `PublishZip(session.Captures, claudeLimitAtStart)` constructs only the current archive with instructions, checks final bytes against 29,000,000 when enabled, and publishes a staged file-drop. Only success permits closing the session. Empty batches throw.
+- A thrown publication/write/clear error must leave captures available and show clipboard error status. Retry calls the same operation with the latest model snapshot; there is no cached retry queue. A failed clear retains ownership state for retry.
+- `CleanupStale(root)` is startup support. It returns diagnostic strings instead of throwing. Report those diagnostics. It only inspects GUID-named instance directories with this adapter's exact owner marker and a non-active exclusive lease. It validates all journal paths before deleting only journaled PNG/ZIP files, without recursive traversal. Reparse paths and active leases are refused. Unrelated entries remain, including inside an owned directory. No historical probe/exporter directories are swept.
+- `Dispose()` is exit support. It clears only an owned offering, deletes journaled files from this instance, and releases its lease. Failures throw and retain retryable state; the host must report them. Files from previous publications are deliberately retained until this point, including partial/unpublished staging. No panel close/reset/Undo deletes files.
+
+Automated tests inject native delegates and roots and assert the actual Windows clipboard sequence remains unchanged. Native destination paste/Claude ingestion and UI integration remain untested in B02.

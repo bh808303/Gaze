@@ -1,5 +1,15 @@
 # Changelog
 
+## Live Transcribe batches — 2026-10-25
+
+- Extend configured-folder Clear to top-level MP4, PNG and ZIP files with a default-No confirmation before moving them to the Recycle Bin; preserve other files and subfolders.
+
+- Publish ordered PNG batches on capture, with Undo, Next Batch, explicit ZIP and close without export. Retain temporary offerings until Gaze exit and safely clean stale artifacts at startup.
+- Rename the existing split setting to Claude Desktop Clipboard; preserve its key and video behavior. Transcribe uses 20 images / 29 MB when enabled, 100 / 256 MiB otherwise, independently of AutoCopy.
+- Retain captures and errors on clipboard/ZIP failure. Retry repeats failed ZIP until successful or superseded by capture/Undo/Next Batch. Show actionable limit warnings.
+- Automated and injected panel validation does not establish current Claude ingestion or native tray/video acceptance; see docs/factory/batches/verification.md.
+
+
 ## Transcribe development — 2026-10-14
 
 - Add Transcribe mode with a separate screenshot session, middle-click window capture, middle-drag monitor-clipped rectangles, latest thumbnail/count, Undo, Done/Stop, Cancel and close choices.

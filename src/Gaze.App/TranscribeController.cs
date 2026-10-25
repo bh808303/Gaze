@@ -11,23 +11,32 @@ internal sealed class TranscribeController : IDisposable
     private readonly TranscribeExporter exporter;
     private readonly Action<TranscribeExporter, bool> completed;
     private readonly Action<Action> dispatch;
-    private readonly Action<IReadOnlyList<TranscribeCapture>> export;
+    private readonly TranscribeBatchFlow flow;
     private readonly TranscribeInput input;
+    private readonly Func<TranscribeSelection, Rectangle, Task<byte[]>> captureSource;
     private TranscribeGesture? gesture;
     private Rectangle monitor;
     private bool busy, disposed, closing;
+    internal TranscribeWindow WindowForValidation => window;
+    internal void CaptureForValidation(TranscribeSelection selection) => Capture(selection, selection.Area);
+    internal void NextBatchForValidation() => NextBatch();
+    internal void RetryForValidation() => RetryClipboard();
     internal int Count => session.Count;
     internal bool IsBusy => busy;
     internal void UndoForValidation() => Undo();
     internal void RenderEvidence(string path) => window.RenderEvidence(path);
     internal IReadOnlyList<TranscribeCapture> Captures => session.Captures;
-    internal TranscribeController(bool autoCopy, string folder, Action<Action> dispatch, Action<TranscribeExporter, bool> completed, Action<IReadOnlyList<TranscribeCapture>>? export = null, TranscribeSession? initialSession = null, Rectangle? placement = null)
+    internal TranscribeController(bool autoCopy, string folder, Action<Action> dispatch, Action<TranscribeExporter, bool> completed, Action<IReadOnlyList<TranscribeCapture>>? export = null, TranscribeSession? initialSession = null, bool claudeDesktopClipboard = true, Action<IReadOnlyList<TranscribeCapture>>? publish = null, Func<TranscribeSelection, Rectangle, Task<byte[]>>? captureSource = null, Rectangle? placement = null)
     {
-        session = initialSession ?? new TranscribeSession();
+        session = initialSession ?? new TranscribeSession(claudeDesktopClipboard);
         this.dispatch = dispatch; this.completed = completed;
-        exporter = new TranscribeExporter(autoCopy, folder);
-        this.export = export ?? exporter.Export;
-        window = new TranscribeWindow(Undo, Finish, Cancel, RequestClose);
+        this.captureSource = captureSource ?? ((selection, area) => selection.IsWindow
+            ? TranscribeScreenshotSource.CaptureWindowAsync(selection.Window)
+            : TranscribeScreenshotSource.CaptureRectangleAsync(selection.Area, area));
+        exporter = new TranscribeExporter(true, folder);
+        flow = new TranscribeBatchFlow(session, publish ?? exporter.PublishBatch,
+            export ?? (captures => exporter.PublishBatchZip(captures, claudeDesktopClipboard)), Complete);
+        window = new TranscribeWindow(Undo, Finish, RequestClose, NextBatch, RetryClipboard);
         try
         {
             input = new TranscribeInput(pointer => this.dispatch(() => HandleInput(pointer)));
@@ -57,53 +66,33 @@ internal sealed class TranscribeController : IDisposable
         int y = Math.Clamp(placement?.Top ?? area.Bottom - height, area.Top, area.Bottom - height);
         Native.SetWindowPos(handle, 0, x, y, width, height, 0x14);
     }
-    private void Refresh(string? status = null) => window.Refresh(session, busy, status);
-    private void Undo() { if (!busy) { session.Undo(); Refresh(); } }
     internal void ShowWindow() { if (!disposed) window.BringToFront(); }
+    private void Refresh(string? status = null) => window.Refresh(session, busy, status ?? flow.Status, flow.NeedsRetry);
+    private void Undo() { if (!busy) { flow.Undo(); Refresh(); } }
+    private void NextBatch()
+    {
+        if (disposed || closing) return;
+        gesture?.Cancel(); gesture = null; overlay.Hide();
+        flow.NextBatch(); busy = false; Refresh();
+    }
+    private void RetryClipboard() { if (!busy) { flow.Retry(); Refresh(); } }
     internal void Finish()
     {
         if (disposed || busy || closing) return;
         gesture?.Cancel(); gesture = null; overlay.Hide();
-        busy = true; Refresh("Exporting…");
-        bool success;
-        try { success = session.Finish(export); }
-        finally { busy = false; }
-        if (success) Complete(true);
-        else Refresh("Export failed. Captures retained. " + session.LastExportError?.Message);
+        flow.Zip();
+        if (!disposed) Refresh();
     }
-    internal void Cancel()
-    {
-        if (busy || disposed) return;
-        if (session.RequestClose(TranscribeCloseChoice.Discard, exporter.Export)) Complete(false);
-    }
+    internal void Cancel() => RequestClose();
     internal bool RequestClose()
     {
         if (disposed) return true;
-        if (busy || closing) return false;
-        if (session.Count == 0) { Finish(); return disposed; }
-        gesture?.Cancel(); gesture = null; overlay.Hide();
-        using var prompt = new Form { Text = "Finish this Transcribe session?", ClientSize = new Size(440, 120), FormBorderStyle = FormBorderStyle.FixedDialog, StartPosition = FormStartPosition.CenterScreen, MinimizeBox = false, MaximizeBox = false };
-        var label = new Label { Text = "Finish exports the captures. Discard removes them.", AutoSize = true, Left = 16, Top = 16 };
-        var finish = new Button { Text = "Finish", Left = 16, Top = 65, Width = 110, DialogResult = DialogResult.Yes };
-        var discard = new Button { Text = "Discard", Left = 136, Top = 65, Width = 110, DialogResult = DialogResult.No };
-        var keep = new Button { Text = "Keep capturing", Left = 256, Top = 65, Width = 160, DialogResult = DialogResult.Cancel };
-        prompt.Controls.AddRange([label, finish, discard, keep]); prompt.CancelButton = keep;
-        closing = true;
-        DialogResult choice;
-        try { choice = prompt.ShowDialog(); }
-        finally { closing = false; }
-        if (choice == DialogResult.Yes) Finish();
-        else if (choice == DialogResult.No) Cancel();
-        else
-        {
-            try { exporter.ResetPending(); session.RequestClose(TranscribeCloseChoice.KeepCapturing, exporter.Export); Refresh(); }
-            catch (Exception error) { Refresh("Could not resume capture: " + error.Message); }
-        }
+        flow.Close();
         return disposed;
     }
     private void Complete(bool exported)
     {
-        closing = true; input.Dispose(); overlay.Hide();
+        closing = true; gesture?.Cancel(); gesture = null; input.Dispose(); overlay.Hide();
         window.CloseAfterFinish(); disposed = true; overlay.Dispose();
         completed(exporter, exported);
     }
@@ -127,27 +116,26 @@ internal sealed class TranscribeController : IDisposable
     }
     private async void Capture(TranscribeSelection selection, Rectangle startingMonitor)
     {
-        busy = true; Refresh("Capturing…");
+        var generation = flow.Generation;
+        busy = true; Refresh();
         try
         {
             // Let DWM remove selection edges before requesting a fresh native frame.
             await Task.Delay(50);
-            var bytes = selection.IsWindow
-                ? await TranscribeScreenshotSource.CaptureWindowAsync(selection.Window)
-                : await TranscribeScreenshotSource.CaptureRectangleAsync(selection.Area, startingMonitor);
+            var bytes = await captureSource(selection, startingMonitor);
             dispatch(() =>
             {
-                if (disposed) return;
-                session.AddCapture(bytes, selection.Title);
-                Refresh("Captured");
+                if (disposed || generation != flow.Generation) return;
+                if (!flow.Accept(bytes, selection.Title, generation)) { Refresh(); return; }
+                Refresh();
                 overlay.Show(selection.IsWindow ? Native.WindowBounds(selection.Window) : selection.Area);
             });
             await Task.Delay(120);
-            dispatch(() => { if (!disposed) { overlay.Hide(); busy = false; Refresh(); } });
+            dispatch(() => { if (!disposed && generation == flow.Generation) { overlay.Hide(); busy = false; Refresh(); } });
         }
         catch (Exception error)
         {
-            dispatch(() => { if (!disposed) { overlay.Hide(); busy = false; Refresh("Capture failed; previous captures retained. " + error.Message); } });
+            dispatch(() => { if (!disposed && generation == flow.Generation) { overlay.Hide(); busy = false; Refresh("Capture failed; previous captures retained. " + error.Message); } });
         }
     }
     public void Dispose()

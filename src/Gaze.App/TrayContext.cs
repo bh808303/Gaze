@@ -80,7 +80,7 @@ internal sealed class TrayContext : ApplicationContext
     private void Shortcut(bool fromTray = false)
     {
         if (cleaning || starting || session.State == SessionState.Saving) return;
-        if (transcribe != null) { transcribe.Finish(); Menu(); return; }
+        if (transcribe != null) { transcribe.RequestClose(); Menu(); return; }
         if (session.State == SessionState.Idle && settings.Mode == CaptureMode.Transcribe)
         {
             var panelBounds = panel?.LastBounds;
@@ -88,10 +88,9 @@ internal sealed class TrayContext : ApplicationContext
             transcribe = new TranscribeController(settings.AutoCopy, settings.Folder, Dispatch, (exporter, exported) =>
             {
                 transcribe = null; escape.Reset();
-                if (exported && exporter.HasClipboardOffer) transcribeExports.Add(exporter);
-                else { try { exporter.Dispose(); } catch (Exception error) { transcribeExports.Add(exporter); Notify("Temporary ZIP retained", error.Message); } }
+                transcribeExports.Add(exporter);
                 ResetPanel(); Menu();
-            }, placement: panelBounds);
+            }, claudeDesktopClipboard: settings.SplitAt29Mb, placement: panelBounds);
             Menu(); return;
         }
         if (session.State == SessionState.Idle)
@@ -132,7 +131,7 @@ internal sealed class TrayContext : ApplicationContext
     }
     private void Stop()
     {
-        if (transcribe != null) { transcribe.Finish(); return; }
+        if (transcribe != null) { transcribe.RequestClose(); return; }
         if (session.State is not (SessionState.Recording or SessionState.Paused)) return;
         session.Tick(clock.Elapsed - lastTick); lastTick = clock.Elapsed;
         session.Stop(); escape.Reset(); overlay.Hide(); noticeUntil = TimeSpan.Zero;
@@ -280,19 +279,12 @@ internal sealed class TrayContext : ApplicationContext
     private void Cleanup()
     {
         if (starting || session.State != SessionState.Idle || cleaning) return;
-        var directory = Path.GetFullPath(settings.Folder);
-        var files = Directory.Exists(directory) ? Directory.GetFiles(directory, "*.mp4", SearchOption.TopDirectoryOnly) : [];
-        if (files.Length == 0) return;
         cleaning = true;
         try
         {
-            if (MessageBox.Show(panel, $"Move all {files.Length} recordings in this folder to the Recycle Bin?\n\n{directory}", "Clean up recordings", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
-            foreach (var file in files)
-            {
-                var fullPath = Path.GetFullPath(file);
-                if (!string.Equals(Path.GetDirectoryName(fullPath), Path.TrimEndingDirectorySeparator(directory), StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Recording is outside the save folder.");
-                if (File.Exists(fullPath)) Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(fullPath, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
-            }
+            SavedFolderClear.Run(settings.Folder,
+                message => MessageBox.Show(panel, message, "Clean up saved files", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes,
+                path => Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(path, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin));
             if (lastFile != null && !File.Exists(lastFile)) lastFile = null;
         }
         finally { cleaning = false; panel?.RefreshRecordings(); Menu(); }

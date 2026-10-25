@@ -171,7 +171,9 @@ public partial class PanelWindow : FluentWindow
     {
         EditSettings();
         var toggle = FindName("SplitAt29Mb") as Wpf.Ui.Controls.ToggleSwitch
-            ?? throw new InvalidOperationException("Split recordings over 29 MB toggle is missing from the actual settings panel.");
+            ?? throw new InvalidOperationException("Claude Desktop Clipboard toggle is missing from the actual settings panel.");
+        if (System.Windows.Automation.AutomationProperties.GetName(toggle) != "Claude Desktop Clipboard")
+            throw new InvalidOperationException("Clipboard toggle accessible name is incorrect.");
         var property = typeof(PanelOptions).GetProperty("SplitAt29Mb")
             ?? throw new InvalidOperationException("Split setting is missing from panel options.");
         foreach (var enabled in new[] { true, false, true })

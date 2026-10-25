@@ -14,6 +14,20 @@ internal sealed class TranscribeExporter : IDisposable
     private StagedZipOffer? offer;
     private readonly Func<byte[], StagedZipOffer>? createOffer;
     private bool disposed;
+    private TranscribeBatchPublisher? batchPublisher;
+    internal static string LiveRoot => Path.Combine(Path.GetTempPath(), "Gaze.Transcribe.Live");
+    internal void PublishBatch(IReadOnlyList<TranscribeCapture> captures) => Live(p => p.Publish(captures));
+    internal void PublishBatchZip(IReadOnlyList<TranscribeCapture> captures, bool limited) => Live(p => p.PublishZip(captures, limited));
+    private void Live(Action<TranscribeBatchPublisher> action)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        owner ??= new TranscribeClipboardOwner();
+        owner.Invoke(() =>
+        {
+            batchPublisher ??= new TranscribeBatchPublisher(LiveRoot, OleSetClipboard, OleIsCurrentClipboard, () => OleSetClipboard(null));
+            action(batchPublisher);
+        });
+    }
     internal string? SavedPath { get; private set; }
     internal bool HasClipboardOffer => offer != null;
 
@@ -68,6 +82,7 @@ internal sealed class TranscribeExporter : IDisposable
         if (disposed) return;
         if (owner == null) { disposed = true; return; }
         // A clipboard/cleanup failure retains the owner and exact path for retry.
+        if (batchPublisher != null) owner.Invoke(batchPublisher.Dispose);
         if (offer != null) owner.Invoke(offer.Stop);
         owner.Dispose();
         disposed = true;
