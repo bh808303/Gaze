@@ -14,12 +14,15 @@ internal sealed class TranscribeInput : IDisposable
     private nint mouseHook, keyboardHook;
     private System.Windows.Forms.Timer? drain;
     private bool stopped;
+    private readonly Func<Point, TranscribePointer>? snapshot;
     internal int Generation { get; private set; }
-    internal TranscribeInput(Action<TranscribePointer> queue, TranscribeTrigger trigger = TranscribeTrigger.MiddleMouse)
+    internal TranscribeInput(Action<TranscribePointer> queue, TranscribeTrigger trigger = TranscribeTrigger.MiddleMouse, bool installHooks = true, Func<Point, TranscribePointer>? snapshot = null)
     {
         this.queue = queue;
-        policy = new(trigger, Held(44));
+        this.snapshot = snapshot;
+        policy = new(trigger, installHooks && Held(44));
         mouseCallback = Mouse; keyboardCallback = Keyboard;
+        if (!installHooks) return;
         try
         {
             mouseHook = Native.SetWindowsHookEx(14, mouseCallback, Native.GetModuleHandle(null), 0);
@@ -37,8 +40,7 @@ internal sealed class TranscribeInput : IDisposable
     {
         if (code >= 0)
         {
-            var route = policy.Mouse((int)message);
-            if (route.Message != 0) Emit(route.Message, Marshal.PtrToStructure<Point>(data));
+            var route = RouteMouse((int)message, Marshal.PtrToStructure<Point>(data));
             if (route.Consume) return 1;
         }
         return Native.CallNextHookEx(mouseHook, code, message, data);
@@ -48,23 +50,33 @@ internal sealed class TranscribeInput : IDisposable
         if (code >= 0 && (message == 0x100 || message == 0x104 || message == 0x101 || message == 0x105))
         {
             int key = Marshal.ReadInt32(data);
-            var route = policy.Key(key, message == 0x100 || message == 0x104,
-                Held(16) || Held(17) || Held(18) || Held(91) || Held(92));
-            if (route.Message != 0)
-            {
-                if (route.Message == -1) Generation++;
-                if (Native.GetCursorPos(out var point)) Emit(route.Message, point);
-                else if (route.Message == 0x207) Cancel();
-            }
+            bool hasPoint = Native.GetCursorPos(out var point);
+            var route = RouteKey(key, message == 0x100 || message == 0x104,
+                Held(16) || Held(17) || Held(18) || Held(91) || Held(92), point, hasPoint);
             if (route.Consume) return 1;
         }
         return Native.CallNextHookEx(keyboardHook, code, message, data);
+    }
+    internal TranscribeRoute RouteMouse(int message, Point point)
+    {
+        var route = policy.Mouse(message);
+        if (route.Message != 0) Emit(route.Message, point);
+        return route;
+    }
+    internal TranscribeRoute RouteKey(int key, bool down, bool modified, Point point, bool hasPoint = true)
+    {
+        var route = policy.Key(key, down, modified);
+        if (route.Message == -1) Generation++;
+        if (route.Message == 0x207 && !hasPoint) Cancel();
+        else if (route.Message != 0 && (hasPoint || route.Message == -1)) Emit(route.Message, point);
+        return route;
     }
     private void Emit(int message, Point point)
     {
         if (stopped) return;
         if (message == 0x207)
         {
+            if (snapshot != null) { queue(snapshot(point) with { Message = message, Point = point, Generation = Generation }); return; }
             var window = Native.GetAncestor(Native.WindowFromPoint(point), 2);
             Native.GetWindowThreadProcessId(window, out var pid);
             queue(new(message, point, window, Native.Title(window), Screen.FromPoint(point).Bounds, pid == Environment.ProcessId, Generation));
@@ -78,7 +90,7 @@ internal sealed class TranscribeInput : IDisposable
         stopped = true; Generation++; policy.Stop();
         if (mouseHook != 0) Native.UnhookWindowsHookEx(mouseHook);
         mouseHook = 0;
-        if (!policy.NeedsRelease) { Unhook(); return; }
+        if (keyboardHook == 0 || !policy.NeedsRelease) { Unhook(); return; }
         // Retain only owned key pairs, at most five seconds. Timer roots this adapter
         // until release/timeout; no future presses are accepted during draining.
         var deadline = Environment.TickCount64 + 5000;

@@ -24,10 +24,11 @@ internal sealed class TranscribeController : IDisposable
     internal void RetryForValidation() => RetryClipboard();
     internal int Count => session.Count;
     internal bool IsBusy => busy;
+    internal bool HasGestureForValidation => gesture != null;
     internal void UndoForValidation() => Undo();
     internal void RenderEvidence(string path) => window.RenderEvidence(path);
     internal IReadOnlyList<TranscribeCapture> Captures => session.Captures;
-    internal TranscribeController(bool autoCopy, string folder, Action<Action> dispatch, Action<TranscribeExporter, bool> completed, Action<IReadOnlyList<TranscribeCapture>>? export = null, TranscribeSession? initialSession = null, bool claudeDesktopClipboard = true, Action<IReadOnlyList<TranscribeCapture>>? publish = null, Func<TranscribeSelection, Rectangle, Task<byte[]>>? captureSource = null, Rectangle? placement = null, TranscribeTrigger trigger = TranscribeTrigger.MiddleMouse)
+    internal TranscribeController(bool autoCopy, string folder, Action<Action> dispatch, Action<TranscribeExporter, bool> completed, Action<IReadOnlyList<TranscribeCapture>>? export = null, TranscribeSession? initialSession = null, bool claudeDesktopClipboard = true, Action<IReadOnlyList<TranscribeCapture>>? publish = null, Func<TranscribeSelection, Rectangle, Task<byte[]>>? captureSource = null, Rectangle? placement = null, TranscribeTrigger trigger = TranscribeTrigger.MiddleMouse, Func<Action<TranscribePointer>, TranscribeInput>? inputFactory = null)
     {
         session = initialSession ?? new TranscribeSession(claudeDesktopClipboard);
         this.dispatch = dispatch; this.completed = completed;
@@ -40,7 +41,8 @@ internal sealed class TranscribeController : IDisposable
         window = new TranscribeWindow(Undo, Finish, RequestClose, NextBatch, RetryClipboard);
         try
         {
-            input = new TranscribeInput(pointer => this.dispatch(() => HandleInput(pointer)), trigger);
+            Action<TranscribePointer> queue = pointer => this.dispatch(() => HandleInput(pointer));
+            input = inputFactory?.Invoke(queue) ?? new TranscribeInput(queue, trigger);
             PlaceWindow(placement);
             window.Show();
             PanelWindow.QueueOnHost(() => PlaceWindow(placement));
@@ -48,10 +50,11 @@ internal sealed class TranscribeController : IDisposable
                 throw new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error(), "Could not exclude Transcribe window from capture.");
             Refresh();
         }
-        catch { input?.Dispose(); window.CloseAfterFinish(); overlay.Dispose(); exporter.Dispose(); throw; }
+        catch { disposed = true; input?.Dispose(); window.CloseAfterFinish(); overlay.Dispose(); exporter.Dispose(); throw; }
     }
     private void PlaceWindow(Rectangle? placement)
     {
+        if (disposed || closing) return;
         var area = Screen.FromPoint(placement?.Location ?? Cursor.Position).WorkingArea;
         var handle = window.NativeHandle;
         var bounds = Native.WindowBounds(handle);
@@ -69,7 +72,7 @@ internal sealed class TranscribeController : IDisposable
     }
     internal void ShowWindow() { if (!disposed) window.BringToFront(); }
     private void Refresh(string? status = null) => window.Refresh(session, busy, status ?? flow.Status, flow.NeedsRetry);
-    private void Undo() { if (!busy) { CancelGesture(); flow.Undo(); Refresh(); } }
+    private void Undo() { if (!disposed && !closing) { CancelGesture(); flow.Undo(); Refresh(); } }
     private void NextBatch()
     {
         if (disposed || closing) return;
@@ -150,7 +153,8 @@ internal sealed class TranscribeController : IDisposable
     public void Dispose()
     {
         if (disposed) return;
-        CancelGesture(); input.Dispose(); overlay.Dispose(); window.CloseAfterFinish(); disposed = true;
+        disposed = true;
+        CancelGesture(); input.Dispose(); overlay.Dispose(); window.CloseAfterFinish();
         exporter.Dispose();
     }
 }

@@ -33,6 +33,8 @@ internal static class Program
             };
             window.Show(); timer.Start(); TrayPanel.RunHost(context); return;
         }
+        if (args.Length == 2 && args[0] == "--transcribe-trigger-probe")
+        { TranscribeTriggerProbe.Run(args[1]); return; }
         if (args.Length == 2 && args[0] == "--transcribe-batch-controller-probe")
         { TranscribeBatchControllerProbe.Run(args[1]); return; }
         if (args.Length == 2 && args[0] == "--transcribe-native-target")

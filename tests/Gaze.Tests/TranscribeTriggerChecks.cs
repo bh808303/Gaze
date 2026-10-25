@@ -35,7 +35,12 @@ internal static class TranscribeTriggerChecks
             p.Key(44,true);
             Check(p.Key(27,true).Message == -1);
             Check(p.Key(27,true).Consume && p.Key(27,false).Consume);
-            Check(p.Key(44,false).Consume && !p.Key(44,false).Consume);
+            var release = p.Key(44,false);
+            Check(release.Consume && release.Message == 0);
+            var canceled = new TranscribeGesture(new(0,0), new(4,4), 42, "canceled", new(0,0,100,100));
+            canceled.Cancel();
+            Check(release.Message != 0x208 && canceled.Complete(new(20,20)) == null);
+            Check(!p.Key(44,false).Consume);
             p.Key(44,true); p.Cancel();
             Check(p.Key(44,false).Message == 0);
         });
