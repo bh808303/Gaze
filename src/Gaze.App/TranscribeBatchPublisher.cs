@@ -12,6 +12,8 @@ internal sealed class TranscribeBatchPublisher : IDisposable
     private readonly Func<int> clear;
     private readonly Action<string, byte[]> write;
     private readonly List<string> files = [];
+    // Weak keys avoid retaining PNG buffers after their batch/session is released.
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<TranscribeCapture, string> staged = new();
     private OleDataObject? offering;
     private bool disposed;
     private const string Marker = "Gaze.Transcribe.Live.v1";
@@ -41,7 +43,18 @@ internal sealed class TranscribeBatchPublisher : IDisposable
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         if (snapshot.Count == 0) { ClearOwned(); return; }
-        StageAndPublish(snapshot.Select(c => (Name(c), c.GetPngBytes())).ToArray());
+        var paths = new List<string>();
+        foreach (var capture in snapshot)
+        {
+            if (!staged.TryGetValue(capture, out var path))
+            {
+                path = Stage(Name(capture), capture.GetPngBytes());
+                // Cache only completed writes. A partial write is journaled, never reused.
+                staged.Add(capture, path);
+            }
+            paths.Add(path);
+        }
+        PublishPaths(paths);
     }
 
     internal void PublishZip(IReadOnlyList<TranscribeCapture> snapshot, bool limited)
@@ -50,7 +63,7 @@ internal sealed class TranscribeBatchPublisher : IDisposable
         if (snapshot.Count == 0) throw new InvalidOperationException("An empty batch has no ZIP.");
         var bytes = TranscribeArchive.Create(snapshot);
         if (limited && bytes.LongLength > 29_000_000) throw new IOException("ZIP exceeds 29,000,000 bytes including archive overhead.");
-        StageAndPublish([("Gaze_Transcribe.zip", bytes)]);
+        PublishPaths([Stage("Gaze_Transcribe.zip", bytes)]);
     }
 
     private static string Name(TranscribeCapture capture)
@@ -61,24 +74,23 @@ internal sealed class TranscribeBatchPublisher : IDisposable
         return $"{capture.Sequence:D6}_{title}.png";
     }
 
-    private void StageAndPublish((string Name, byte[] Bytes)[] payloads)
+    private string Stage(string name, byte[] bytes)
     {
         EnsureOrdinary(directory);
         var batch = Path.Combine(directory, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(batch);
         EnsureOrdinary(batch);
-        var paths = new List<string>();
-        foreach (var payload in payloads)
-        {
-            var path = Path.Combine(batch, payload.Name);
-            // Journal before writing so partial writes are owned and recoverable at exit/startup.
-            files.Add(Path.GetRelativePath(directory, path));
-            var journal = Path.Combine(directory, "files");
-            EnsureOrdinary(journal);
-            File.WriteAllLines(journal, files);
-            write(path, payload.Bytes);
-            paths.Add(path);
-        }
+        var path = Path.Combine(batch, name);
+        files.Add(Path.GetRelativePath(directory, path));
+        var journal = Path.Combine(directory, "files");
+        EnsureOrdinary(journal);
+        File.WriteAllLines(journal, files);
+        write(path, bytes);
+        return path;
+    }
+
+    private void PublishPaths(IReadOnlyList<string> paths)
+    {
         var data = new DataObject();
         var drop = new System.Collections.Specialized.StringCollection(); drop.AddRange(paths.ToArray());
         data.SetFileDropList(drop);

@@ -6,6 +6,8 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (args.Length == 2 && args[0] == "--transcribe-batch-controller-probe")
+        { TranscribeBatchControllerProbe.Run(args[1]); return; }
         if (args.Length == 2 && args[0] == "--transcribe-native-target")
         { TranscribeIntegrationProbe.RunTarget(args[1]); return; }
         if (args.Length == 2 && args[0] == "--transcribe-integration-probe")
@@ -117,6 +119,8 @@ internal static class Program
         if (!first) { MessageBox.Show("Gaze is already running in the system tray.", "Gaze"); return; }
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
         { MessageBox.Show("Gaze requires Windows 10 version 2004 or later.", "Gaze"); return; }
+        foreach (var error in TranscribeBatchPublisher.CleanupStale(TranscribeExporter.LiveRoot))
+            System.Diagnostics.Trace.WriteLine("Transcribe startup cleanup: " + error);
         try { using var context = new TrayContext(); TrayPanel.RunHost(context); }
         catch (Exception e) { MessageBox.Show(e.ToString(), "Gaze could not start", MessageBoxButtons.OK, MessageBoxIcon.Error); }
     }

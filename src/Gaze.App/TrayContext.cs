@@ -76,17 +76,16 @@ internal sealed class TrayContext : ApplicationContext
     private void Shortcut(bool fromTray = false)
     {
         if (cleaning || starting || session.State == SessionState.Saving) return;
-        if (transcribe != null) { transcribe.Finish(); Menu(); return; }
+        if (transcribe != null) { transcribe.RequestClose(); Menu(); return; }
         if (session.State == SessionState.Idle && settings.Mode == CaptureMode.Transcribe)
         {
             panel?.Hide(); escape.Reset();
             transcribe = new TranscribeController(settings.AutoCopy, settings.Folder, Dispatch, (exporter, exported) =>
             {
                 transcribe = null; escape.Reset();
-                if (exported && exporter.HasClipboardOffer) transcribeExports.Add(exporter);
-                else { try { exporter.Dispose(); } catch (Exception error) { transcribeExports.Add(exporter); Notify("Temporary ZIP retained", error.Message); } }
+                transcribeExports.Add(exporter);
                 ResetPanel(); Menu();
-            });
+            }, claudeDesktopClipboard: settings.SplitAt29Mb);
             Menu(); return;
         }
         if (session.State == SessionState.Idle)
@@ -127,7 +126,7 @@ internal sealed class TrayContext : ApplicationContext
     }
     private void Stop()
     {
-        if (transcribe != null) { transcribe.Finish(); return; }
+        if (transcribe != null) { transcribe.RequestClose(); return; }
         if (session.State is not (SessionState.Recording or SessionState.Paused)) return;
         session.Tick(clock.Elapsed - lastTick); lastTick = clock.Elapsed;
         session.Stop(); escape.Reset(); overlay.Hide(); noticeUntil = TimeSpan.Zero;
