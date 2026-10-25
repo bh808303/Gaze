@@ -6,6 +6,7 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (args.Length == 2 && args[0] == "--output-panel-probe") { OutputPanelProbe.Run(args[1]); return; }
         if (args.Length == 2 && args[0] == "--transcribe-ui-check")
         {
             int zipped = 0, closed = 0;
@@ -33,6 +34,8 @@ internal static class Program
             };
             window.Show(); timer.Start(); TrayPanel.RunHost(context); return;
         }
+        if (args.Length == 2 && args[0] == "--transcribe-trigger-probe")
+        { TranscribeTriggerProbe.Run(args[1]); return; }
         if (args.Length == 2 && args[0] == "--transcribe-batch-controller-probe")
         { TranscribeBatchControllerProbe.Run(args[1]); return; }
         if (args.Length == 2 && args[0] == "--transcribe-native-target")

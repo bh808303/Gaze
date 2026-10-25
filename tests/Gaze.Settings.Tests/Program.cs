@@ -10,6 +10,58 @@ internal static class Program
             if ((int)CaptureMode.Window != 0 || (int)CaptureMode.AllMonitors != 1 || (int)CaptureMode.CurrentMonitor != 2 || (int)CaptureMode.Transcribe != 3) throw new Exception("Capture mode serialization changed");
             var transcribe = JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(new Settings { Mode = CaptureMode.Transcribe }))!;
             if (transcribe.Mode != CaptureMode.Transcribe) throw new Exception("Transcribe mode did not round-trip");
+            var triggerProperty = typeof(Settings).GetProperty("TranscribeTrigger") ?? throw new Exception("Missing persisted Screenshot trigger: Print Screen cannot be selected");
+            if ((TranscribeTrigger)triggerProperty.GetValue(JsonSerializer.Deserialize<Settings>("{}")!)! != TranscribeTrigger.MiddleMouse) throw new Exception("Legacy trigger must remain Middle mouse");
+            foreach (var choice in new[] { TranscribeTrigger.PrintScreen, TranscribeTrigger.MiddleMouse })
+            {
+                var original = new Settings(); triggerProperty.SetValue(original, choice);
+                var restored = JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(original))!;
+                if ((TranscribeTrigger)triggerProperty.GetValue(restored)! != choice) throw new Exception("Trigger roundtrip lost choice");
+                Settings? applied = null;
+                IEnumerable<Control> Descendants(Control c) => c.Controls.Cast<Control>().SelectMany(x => new[]{x}.Concat(Descendants(x)));
+                using (var edit = new SettingsForm(restored, value => applied = value))
+                {
+                    edit.Show();
+                    var choices = Descendants(edit).OfType<ComboBox>().Single(c => c.AccessibleName == "Screenshot trigger");
+                    if (choices.Items.Count != 2 || choices.SelectedIndex != (int)choice) throw new Exception("Trigger UI choices/default mismatch");
+                    choices.SelectedIndex = 1 - (int)choice;
+                    Descendants(edit).OfType<Button>().Single(c => c.Text == "Cancel").PerformClick();
+                    if (applied != null || (TranscribeTrigger)triggerProperty.GetValue(restored)! != choice) throw new Exception("Cancel changed trigger");
+                }
+                using (var edit = new SettingsForm(restored, value => applied = value))
+                {
+                    edit.Show();
+                    Descendants(edit).OfType<ComboBox>().Single(c => c.AccessibleName == "Screenshot trigger").SelectedIndex = 1 - (int)choice;
+                    Descendants(edit).OfType<Button>().Single(c => c.Text == "Save settings").PerformClick();
+                    if (applied == null || (int)(TranscribeTrigger)triggerProperty.GetValue(applied)! != 1 - (int)choice) throw new Exception("Save lost trigger");
+                }
+            }
+            IEnumerable<Control> ControlsFor(Control c) => c.Controls.Cast<Control>().SelectMany(x => new[]{x}.Concat(ControlsFor(x)));
+            var invalidPath = Path.Combine(Path.GetTempPath(), "gaze-settings-" + Guid.NewGuid() + ".json");
+            try
+            {
+                File.WriteAllText(invalidPath, "{\"TranscribeTrigger\":99}");
+                try { Settings.Load(invalidPath); throw new Exception("Invalid trigger accepted"); }
+                catch (InvalidDataException) { }
+                foreach (var choice in new[] { TranscribeTrigger.MiddleMouse, TranscribeTrigger.PrintScreen })
+                {
+                    new Settings { TranscribeTrigger = choice }.Save(invalidPath);
+                    var persisted = Settings.Load(invalidPath);
+                    if (persisted.TranscribeTrigger != choice) throw new Exception("Actual file save/load lost trigger");
+                    Settings? retained = null;
+                    using var unrelated = new SettingsForm(persisted, value => retained = value);
+                    unrelated.Show();
+                    ControlsFor(unrelated).OfType<ComboBox>().Single(c => c.Items.Contains("Screenshot")).SelectedIndex = 3;
+                    ControlsFor(unrelated).OfType<Button>().Single(c => c.Text == "Save settings").PerformClick();
+                    if (retained?.TranscribeTrigger != choice) throw new Exception("Unrelated WinForms mode save lost trigger");
+                }
+                File.WriteAllText(invalidPath, "{}");
+                if (Settings.Load(invalidPath).TranscribeTrigger != TranscribeTrigger.MiddleMouse) throw new Exception("Legacy loaded trigger changed");
+            }
+            finally { File.Delete(invalidPath); }
+            var oldFolder = JsonSerializer.Deserialize<Settings>("{\"Folder\":\"C:/legacy-gaze\"}")!;
+            if (oldFolder.Folder != "C:/legacy-gaze" || !JsonSerializer.Serialize(oldFolder).Contains("Folder")) throw new Exception("Output root Folder compatibility changed");
+            if (Path.GetFileName(new Settings().Folder) != "Output") throw new Exception("New default is not Output");
             var property = typeof(Settings).GetProperty("RecordTimelineMetadata");
             if (property == null) throw new Exception("Settings has no optional metadata toggle");
             var legacy = JsonSerializer.Deserialize<Settings>("{\"KeyboardTimeline\":true}")!;
@@ -28,8 +80,8 @@ internal static class Program
             using var form = new SettingsForm(loaded, _ => {});
             IEnumerable<Control> Controls(Control c) => c.Controls.Cast<Control>().SelectMany(x => new[]{x}.Concat(Controls(x)));
             var toggle = Controls(form).OfType<CheckBox>().Single(c => c.Text == "Record timeline metadata");
-            var modeChoices = Controls(form).OfType<ComboBox>().Single(c => c.Items.Contains("Transcribe"));
-            if (modeChoices.Items.Count != 4 || modeChoices.Items[3]?.ToString() != "Transcribe") throw new Exception("Capture mode dropdown mapping changed");
+            var modeChoices = Controls(form).OfType<ComboBox>().Single(c => c.Items.Contains("Screenshot"));
+            if (modeChoices.Items.Count != 4 || modeChoices.Items[3]?.ToString() != "Screenshot") throw new Exception("Capture mode dropdown mapping changed");
             if (!toggle.Checked) throw new Exception("Settings UI lost persisted toggle");
             var compatible = JsonSerializer.Deserialize<Settings>("{\"SplitAt29Mb\":true,\"AutoCopy\":false}")!;
             var roundtrip = JsonSerializer.Serialize(compatible);
@@ -37,7 +89,7 @@ internal static class Program
             using var clipboardForm = new SettingsForm(compatible, _ => {});
             var clipboardToggle = Controls(clipboardForm).OfType<CheckBox>().SingleOrDefault(c => c.Text == "Claude Desktop Clipboard");
             if (clipboardToggle is not { Checked: true, AccessibleName: "Claude Desktop Clipboard" }) throw new Exception("WinForms Claude Desktop Clipboard label/accessibility/persisted value missing");
-            const string help = "Video: 29 MB parts. Transcribe: 20 images / 29 MB per batch.";
+            const string help = "Video: 29 MB parts. Screenshot: 20 images / 29 MB per batch.";
             if (!Controls(clipboardForm).OfType<Label>().Any(c => c.Text.Contains(help))) throw new Exception("WinForms clipboard limits helper missing");
             foreach (bool enabled in new[] { false, true })
             {

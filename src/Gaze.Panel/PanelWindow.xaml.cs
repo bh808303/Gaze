@@ -20,7 +20,7 @@ public partial class PanelWindow : FluentWindow
     private readonly Action<string> open, copy;
     private bool viewingRecordings, editing, updating, idle = true, disposing;
     private uint modifiers; private int key;
-    public sealed record Recording(string Path, string Name, string Details);
+    public sealed record Recording(string Path, string Name, string Details) { public SymbolRegular Icon { get; init; } = SymbolRegular.Video24; }
     public PanelWindow(Func<PanelOptions> getOptions, Action<PanelOptions> apply, Action action, Action cancel, Action<string> open, Action folder, Action<string> copy, Action quit, Action cleanup, Func<bool>? readSignInStartup = null)
     {
         this.readSignInStartup = readSignInStartup ?? (() => false);
@@ -31,7 +31,7 @@ public partial class PanelWindow : FluentWindow
         Fps.ItemsSource = Enumerable.Range(1, 30);
         System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(this);
         Loaded += (_, _) => { if (editing) EditSettings(); };
-        updating = true; Mode.ItemsSource = new[] { "Selected window", "All monitors", "Main monitor", "Transcribe" }; Mode.SelectedIndex = (int)getOptions().Mode; updating = false;
+        updating = true; Mode.ItemsSource = new[] { "Selected window", "All monitors", "Main monitor", "Screenshot" }; Mode.SelectedIndex = (int)getOptions().Mode; updating = false;
         Closing += (_, e) => { if (disposing) return; e.Cancel = true; Hide(); Home(); };
         Home();
     }
@@ -51,13 +51,16 @@ public partial class PanelWindow : FluentWindow
     public static void StopHostDispatcher() => System.Windows.Application.Current.Shutdown();
     public object LayoutEvidence() => new { ActualWidth, ActualHeight, IsLoaded, IsVisible, ContentWidth = ((FrameworkElement)Content).ActualWidth, ContentHeight = ((FrameworkElement)Content).ActualHeight };
     public void DisposePanel() { disposing = true; Close(); }
+    public OutputCategory ViewedCategory { get; private set; } = OutputCategory.Recordings;
+    public string ViewedFolder => OutputStore.Folder(getOptions().Folder, ViewedCategory);
     public void RefreshRecordings()
     {
         string? selected = (Recordings.SelectedItem as Recording)?.Path;
         try
         {
-            var directory = getOptions().Folder;
-            var files = Directory.Exists(directory) ? new DirectoryInfo(directory).GetFiles("*.mp4").OrderByDescending(f => f.LastWriteTimeUtc).Select(f => new Recording(f.FullName, f.Name, $"{f.LastWriteTime:dd MMM yyyy · HH:mm}   ·   {f.Length / 1048576.0:0.0} MB")).ToArray() : [];
+            var directory = ViewedFolder;
+            EmptyList.Text = ViewedCategory == OutputCategory.Screenshots ? "No screenshots in Output/Screenshots" : "No recordings in Output/Videos";
+            var files = Directory.Exists(directory) ? new DirectoryInfo(directory).GetFiles().Where(f => OutputFiles.Includes(ViewedCategory, f.FullName)).OrderByDescending(f => f.LastWriteTimeUtc).Select(f => new Recording(f.FullName, f.Name, $"{f.LastWriteTime:dd MMM yyyy · HH:mm}   ·   {f.Length / 1048576.0:0.0} MB") { Icon = ViewedCategory == OutputCategory.Screenshots ? SymbolRegular.Image24 : SymbolRegular.Video24 }).ToArray() : [];
             Recordings.ItemsSource = files; FileCount.Text = $"({files.Length})"; EmptyList.Visibility = files.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
             Recordings.SelectedItem = files.FirstOrDefault(f => f.Path == selected) ?? files.FirstOrDefault();
         }
@@ -101,6 +104,7 @@ public partial class PanelWindow : FluentWindow
         AutoCopy.IsChecked = options.AutoCopy; Clicks.IsChecked = options.ClickHighlight; DoubleEscape.IsChecked = options.DoubleEscape;
         Fps.SelectedItem = options.FrameRate; Canvas.SelectedIndex = (int)options.Canvas; Canvas.IsEnabled = options.Mode == CaptureMode.Window;
         Compression.SelectedIndex = (int)options.Compression;
+        CaptureTrigger.SelectedIndex = (int)options.TranscribeTrigger;
         SplitAt29Mb.IsChecked = false; SplitAt29Mb.IsChecked = options.SplitAt29Mb;
         KeyboardTimeline.IsChecked = options.KeyboardTimeline;
         RecordTimelineMetadata.IsChecked = options.RecordTimelineMetadata;
@@ -114,6 +118,7 @@ public partial class PanelWindow : FluentWindow
     public void ShowRecordings()
     {
         editing = false; viewingRecordings = true;
+        SelectCategory(getOptions().Mode == CaptureMode.Transcribe ? OutputCategory.Screenshots : OutputCategory.Recordings);
         Height = 540; PanelFrame.Height = Height / 0.85;
         FooterRow.Height = new GridLength(55.7647);
         HomePage.Visibility = SettingsPage.Visibility = SettingsFooter.Visibility = Visibility.Collapsed;
@@ -122,6 +127,19 @@ public partial class PanelWindow : FluentWindow
         RecordingsIcon.Symbol = SymbolRegular.ArrowLeft24;
         RefreshRecordings();
     }
+    private void SelectCategory(OutputCategory category)
+    {
+        ViewedCategory = category;
+        Heading.Text = category == OutputCategory.Screenshots ? "Screenshots" : "Recordings";
+        ScreenshotsCategory.Appearance = category == OutputCategory.Screenshots ? ControlAppearance.Primary : ControlAppearance.Secondary;
+        RecordingsCategory.Appearance = category == OutputCategory.Recordings ? ControlAppearance.Primary : ControlAppearance.Secondary;
+        System.Windows.Automation.AutomationProperties.SetItemStatus(ScreenshotsCategory, category == OutputCategory.Screenshots ? "Selected" : "Not selected");
+        System.Windows.Automation.AutomationProperties.SetItemStatus(RecordingsCategory, category == OutputCategory.Recordings ? "Selected" : "Not selected");
+        Recordings.SelectedItem = null;
+        RefreshRecordings();
+    }
+    private void ScreenshotsCategoryClick(object sender, RoutedEventArgs e) => SelectCategory(OutputCategory.Screenshots);
+    private void RecordingsCategoryClick(object sender, RoutedEventArgs e) => SelectCategory(OutputCategory.Recordings);
     private void RecordingsClick(object sender, RoutedEventArgs e)
     {
         if (viewingRecordings) Home(); else ShowRecordings();
@@ -151,6 +169,26 @@ public partial class PanelWindow : FluentWindow
         var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
         timer.Tick += (_, _) => { timer.Stop(); Render(path); File.WriteAllText(path + ".state.json", System.Text.Json.JsonSerializer.Serialize(new { AutoCopy = AutoCopy.IsChecked, SplitAt29Mb = SplitAt29Mb.IsChecked, ClickHighlight = Clicks.IsChecked, DoubleEscape = DoubleEscape.IsChecked, Expected = getOptions() })); disposing = true; System.Windows.Application.Current.Shutdown(); };
         timer.Start(); System.Windows.Application.Current.Run(this);
+    }
+    public void CheckTranscribeTrigger(string evidence)
+    {
+        foreach (var trigger in new[] { TranscribeTrigger.PrintScreen, TranscribeTrigger.MiddleMouse })
+        {
+            EditSettings();
+            if (CaptureTrigger.Items.Count != 2) throw new InvalidOperationException("Expected exactly two capture triggers.");
+            CaptureTrigger.SelectedIndex = (int)trigger; SaveClick(this, new RoutedEventArgs()); EditSettings();
+            if (getOptions().TranscribeTrigger != trigger || CaptureTrigger.SelectedIndex != (int)trigger)
+                throw new InvalidOperationException("Trigger save/reload failed through actual panel mapping.");
+            Render(Path.Combine(evidence, $"settings-{trigger}.png"));
+            CaptureTrigger.SelectedIndex = 1 - (int)trigger; CancelSettingsClick(this, new RoutedEventArgs()); EditSettings();
+            if (getOptions().TranscribeTrigger != trigger || CaptureTrigger.SelectedIndex != (int)trigger)
+                throw new InvalidOperationException("Trigger cancel changed persisted selection.");
+            CheckCompression();
+            Mode.SelectedIndex = (int)CaptureMode.Transcribe;
+            Mode.SelectedIndex = (int)CaptureMode.Window;
+            if (getOptions().TranscribeTrigger != trigger) throw new InvalidOperationException("Unrelated settings/mode lost trigger.");
+        }
+        Home();
     }
     public void CheckCompression()
     {
@@ -237,7 +275,7 @@ public partial class PanelWindow : FluentWindow
     }
     private void BrowseClick(object sender, RoutedEventArgs e)
     {
-        var picker = new Microsoft.Win32.OpenFolderDialog { InitialDirectory = Folder.Text, Title = "Recording folder" };
+        var picker = new Microsoft.Win32.OpenFolderDialog { InitialDirectory = Folder.Text, Title = "Output root" };
         if (picker.ShowDialog(this) == true) Folder.Text = picker.FolderName;
     }
     private void ShortcutKey(object sender, KeyEventArgs e)
@@ -258,6 +296,8 @@ public partial class PanelWindow : FluentWindow
             var options = getOptions(); options.Folder = Path.GetFullPath(Folder.Text); options.Modifiers = modifiers; options.Key = key; options.FrameRate = (int)fps;
             options.AutoCopy = AutoCopy.IsChecked == true; options.ClickHighlight = Clicks.IsChecked == true; options.DoubleEscape = DoubleEscape.IsChecked == true; options.Canvas = (WindowCanvasMode)Canvas.SelectedIndex;
             if (Compression.SelectedIndex < 0) throw new InvalidOperationException("Choose a compression mode.");
+            if (CaptureTrigger.SelectedIndex < 0) throw new InvalidOperationException("Choose a Screenshot trigger.");
+            options.TranscribeTrigger = (TranscribeTrigger)CaptureTrigger.SelectedIndex;
             options.Compression = (CompressionMode)Compression.SelectedIndex;
             options.SplitAt29Mb = SplitAt29Mb.IsChecked == true;
             options.KeyboardTimeline = KeyboardTimeline.IsChecked == true;

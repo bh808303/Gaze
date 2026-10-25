@@ -90,7 +90,7 @@ internal sealed class TrayContext : ApplicationContext
                 transcribe = null; escape.Reset();
                 transcribeExports.Add(exporter);
                 ResetPanel(); Menu();
-            }, claudeDesktopClipboard: settings.SplitAt29Mb, placement: panelBounds);
+            }, claudeDesktopClipboard: settings.SplitAt29Mb, placement: panelBounds, trigger: settings.TranscribeTrigger);
             Menu(); return;
         }
         if (session.State == SessionState.Idle)
@@ -124,7 +124,7 @@ internal sealed class TrayContext : ApplicationContext
                 { starting = false; session.Start(); lastTick = clock.Elapsed; escape.Reset(); Menu(); }
             });
             starting = true;
-            capture.Start(session.Mode, session.Root, settings.FrameRate, settings.ClickHighlight, settings.Folder, windowCanvas: settings.WindowCanvas, compression: settings.Compression, splitAt29Mb: settings.SplitAt29Mb, collectionOptions: settings.CollectionOptions);
+            capture.Start(session.Mode, session.Root, settings.FrameRate, settings.ClickHighlight, OutputStore.Folder(settings.Folder, OutputCategory.Recordings), windowCanvas: settings.WindowCanvas, compression: settings.Compression, splitAt29Mb: settings.SplitAt29Mb, collectionOptions: settings.CollectionOptions);
         }
         else Stop();
         Menu();
@@ -182,7 +182,7 @@ internal sealed class TrayContext : ApplicationContext
             }
         }
         var duration = $"{(int)session.Duration.TotalHours:00}:{session.Duration.Minutes:00}:{session.Duration.Seconds:00}";
-        tray.Text = transcribe != null ? "Gaze · Transcribe" : $"Gaze · {session.State} · {duration}";
+        tray.Text = transcribe != null ? "Gaze · Screenshot" : $"Gaze · {session.State} · {duration}";
         panel?.RefreshState(transcribe != null ? SessionState.Recording : session.State, session.Duration, starting, lastFile != null);
         if (now < noticeUntil) return;
         if (session.State == SessionState.Armed)
@@ -230,7 +230,7 @@ internal sealed class TrayContext : ApplicationContext
     private void Notify(string title, string body) => tray.ShowBalloonTip(5000, title, body, ToolTipIcon.Info);
     private void OpenFolder()
     {
-        var folder = lastFile is null ? settings.Folder : Path.GetDirectoryName(lastFile)!;
+        var folder = panel?.ViewedFolder ?? OutputStore.Folder(settings.Folder, settings.Mode == CaptureMode.Transcribe ? OutputCategory.Screenshots : OutputCategory.Recordings);
         Directory.CreateDirectory(folder); Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
     }
     private void Menu()
@@ -278,11 +278,11 @@ internal sealed class TrayContext : ApplicationContext
     }
     private void Cleanup()
     {
-        if (starting || session.State != SessionState.Idle || cleaning) return;
+        if (starting || transcribe != null || session.State != SessionState.Idle || cleaning) return;
         cleaning = true;
         try
         {
-            SavedFolderClear.Run(settings.Folder,
+            OutputFiles.Clean(settings.Folder, panel?.ViewedCategory ?? (settings.Mode == CaptureMode.Transcribe ? OutputCategory.Screenshots : OutputCategory.Recordings),
                 message => MessageBox.Show(panel, message, "Clean up saved files", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) == DialogResult.Yes,
                 path => Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(path, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin));
             if (lastFile != null && !File.Exists(lastFile)) lastFile = null;

@@ -17,16 +17,18 @@ internal sealed class TranscribeController : IDisposable
     private TranscribeGesture? gesture;
     private Rectangle monitor;
     private bool busy, disposed, closing;
+    private int captureVersion;
     internal TranscribeWindow WindowForValidation => window;
     internal void CaptureForValidation(TranscribeSelection selection) => Capture(selection, selection.Area);
     internal void NextBatchForValidation() => NextBatch();
     internal void RetryForValidation() => RetryClipboard();
     internal int Count => session.Count;
     internal bool IsBusy => busy;
+    internal bool HasGestureForValidation => gesture != null;
     internal void UndoForValidation() => Undo();
     internal void RenderEvidence(string path) => window.RenderEvidence(path);
     internal IReadOnlyList<TranscribeCapture> Captures => session.Captures;
-    internal TranscribeController(bool autoCopy, string folder, Action<Action> dispatch, Action<TranscribeExporter, bool> completed, Action<IReadOnlyList<TranscribeCapture>>? export = null, TranscribeSession? initialSession = null, bool claudeDesktopClipboard = true, Action<IReadOnlyList<TranscribeCapture>>? publish = null, Func<TranscribeSelection, Rectangle, Task<byte[]>>? captureSource = null, Rectangle? placement = null)
+    internal TranscribeController(bool autoCopy, string folder, Action<Action> dispatch, Action<TranscribeExporter, bool> completed, Action<IReadOnlyList<TranscribeCapture>>? export = null, TranscribeSession? initialSession = null, bool claudeDesktopClipboard = true, Action<IReadOnlyList<TranscribeCapture>>? publish = null, Func<TranscribeSelection, Rectangle, Task<byte[]>>? captureSource = null, Rectangle? placement = null, TranscribeTrigger trigger = TranscribeTrigger.MiddleMouse, Func<Action<TranscribePointer>, TranscribeInput>? inputFactory = null)
     {
         session = initialSession ?? new TranscribeSession(claudeDesktopClipboard);
         this.dispatch = dispatch; this.completed = completed;
@@ -35,11 +37,12 @@ internal sealed class TranscribeController : IDisposable
             : TranscribeScreenshotSource.CaptureRectangleAsync(selection.Area, area));
         exporter = new TranscribeExporter(true, folder);
         flow = new TranscribeBatchFlow(session, publish ?? exporter.PublishBatch,
-            export ?? (captures => exporter.PublishBatchZip(captures, claudeDesktopClipboard)), Complete);
-        window = new TranscribeWindow(Undo, Finish, RequestClose, NextBatch, RetryClipboard);
+            export ?? (captures => exporter.PublishBatchZip(captures, claudeDesktopClipboard)), Complete, new OutputStore(folder));
+        window = new TranscribeWindow(Undo, Finish, RequestClose, NextBatch, RetryClipboard, trigger);
         try
         {
-            input = new TranscribeInput(pointer => this.dispatch(() => HandleInput(pointer)));
+            Action<TranscribePointer> queue = pointer => this.dispatch(() => HandleInput(pointer));
+            input = inputFactory?.Invoke(queue) ?? new TranscribeInput(queue, trigger);
             PlaceWindow(placement);
             window.Show();
             PanelWindow.QueueOnHost(() => PlaceWindow(placement));
@@ -47,10 +50,11 @@ internal sealed class TranscribeController : IDisposable
                 throw new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error(), "Could not exclude Transcribe window from capture.");
             Refresh();
         }
-        catch { input?.Dispose(); window.CloseAfterFinish(); overlay.Dispose(); exporter.Dispose(); throw; }
+        catch { disposed = true; input?.Dispose(); window.CloseAfterFinish(); overlay.Dispose(); exporter.Dispose(); throw; }
     }
     private void PlaceWindow(Rectangle? placement)
     {
+        if (disposed || closing) return;
         var area = Screen.FromPoint(placement?.Location ?? Cursor.Position).WorkingArea;
         var handle = window.NativeHandle;
         var bounds = Native.WindowBounds(handle);
@@ -68,18 +72,18 @@ internal sealed class TranscribeController : IDisposable
     }
     internal void ShowWindow() { if (!disposed) window.BringToFront(); }
     private void Refresh(string? status = null) => window.Refresh(session, busy, status ?? flow.Status, flow.NeedsRetry);
-    private void Undo() { if (!busy) { flow.Undo(); Refresh(); } }
+    private void Undo() { if (!disposed && !closing) { CancelGesture(); flow.Undo(); Refresh(); } }
     private void NextBatch()
     {
         if (disposed || closing) return;
-        gesture?.Cancel(); gesture = null; overlay.Hide();
+        CancelGesture();
         flow.NextBatch(); busy = false; Refresh();
     }
     private void RetryClipboard() { if (!busy) { flow.Retry(); Refresh(); } }
     internal void Finish()
     {
         if (disposed || busy || closing) return;
-        gesture?.Cancel(); gesture = null; overlay.Hide();
+        CancelGesture();
         flow.Zip();
         if (!disposed) Refresh();
     }
@@ -87,17 +91,26 @@ internal sealed class TranscribeController : IDisposable
     internal bool RequestClose()
     {
         if (disposed) return true;
+        CancelGesture();
         flow.Close();
+        if (!disposed) Refresh();
         return disposed;
     }
     private void Complete(bool exported)
     {
-        closing = true; gesture?.Cancel(); gesture = null; input.Dispose(); overlay.Hide();
+        closing = true; CancelGesture(); input.Dispose(); overlay.Hide();
         window.CloseAfterFinish(); disposed = true; overlay.Dispose();
         completed(exporter, exported);
     }
+    private void CancelGesture(bool cancelInput = true)
+    {
+        if (cancelInput) input.Cancel();
+        captureVersion++; busy = false; gesture?.Cancel(); gesture = null; overlay.Hide();
+    }
     private void HandleInput(TranscribePointer pointer)
     {
+        if (pointer.Generation != input.Generation) return;
+        if (pointer.Message == -1) { CancelGesture(false); return; }
         if (disposed || busy || closing || session.State != TranscribeState.Capturing) return;
         var message = pointer.Message; var point = pointer.Point;
         if (message == 0x207)
@@ -116,7 +129,7 @@ internal sealed class TranscribeController : IDisposable
     }
     private async void Capture(TranscribeSelection selection, Rectangle startingMonitor)
     {
-        var generation = flow.Generation;
+        var generation = flow.Generation; var version = captureVersion;
         busy = true; Refresh();
         try
         {
@@ -125,23 +138,24 @@ internal sealed class TranscribeController : IDisposable
             var bytes = await captureSource(selection, startingMonitor);
             dispatch(() =>
             {
-                if (disposed || generation != flow.Generation) return;
+                if (disposed || generation != flow.Generation || version != captureVersion) return;
                 if (!flow.Accept(bytes, selection.Title, generation)) { Refresh(); return; }
                 Refresh();
                 overlay.Show(selection.IsWindow ? Native.WindowBounds(selection.Window) : selection.Area);
             });
             await Task.Delay(120);
-            dispatch(() => { if (!disposed && generation == flow.Generation) { overlay.Hide(); busy = false; Refresh(); } });
+            dispatch(() => { if (!disposed && generation == flow.Generation && version == captureVersion) { overlay.Hide(); busy = false; Refresh(); } });
         }
         catch (Exception error)
         {
-            dispatch(() => { if (!disposed && generation == flow.Generation) { overlay.Hide(); busy = false; Refresh("Capture failed; previous captures retained. " + error.Message); } });
+            dispatch(() => { if (!disposed && generation == flow.Generation && version == captureVersion) { overlay.Hide(); busy = false; Refresh("Capture failed; previous captures retained. " + error.Message); } });
         }
     }
     public void Dispose()
     {
         if (disposed) return;
-        input.Dispose(); overlay.Dispose(); window.CloseAfterFinish(); disposed = true;
+        disposed = true;
+        CancelGesture(); input.Dispose(); overlay.Dispose(); window.CloseAfterFinish();
         exporter.Dispose();
     }
 }

@@ -1,5 +1,5 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="Gaze 0.6 Alpha" Manufacturer="Gaze" Version="0.6.0" UpgradeCode="0A54FEC4-058D-4B97-BC88-4C79F9AA351A" Scope="perMachine" InstallerVersion="500">
+  <Package Name="Gaze 0.7 Alpha" Manufacturer="Gaze" Version="0.7.0" UpgradeCode="0A54FEC4-058D-4B97-BC88-4C79F9AA351A" Scope="perMachine" InstallerVersion="500">
     <MajorUpgrade DowngradeErrorMessage="A newer version of Gaze is already installed." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
     <Property Id="WINDOWSBUILDNUMBER" Secure="yes"><RegistrySearch Id="WindowsBuildSearch" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion" Name="CurrentBuildNumber" Type="raw" Bitness="always64" /></Property>

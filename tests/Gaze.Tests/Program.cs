@@ -1,6 +1,7 @@
 using Gaze.Core;
 
 var failures = 0;
+TranscribeTriggerChecks.Run(Test);
 SavedFolderClearChecks.Run(Test);
 StartupChecks.Run(Test);
 TranscribeChecks.Run(Test);

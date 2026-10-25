@@ -1,4 +1,4 @@
-Gaze 0.6 Alpha — third-party components
+Gaze 0.7 Alpha — third-party components
 
 FFmpeg 7.1, Copyright (c) 2000-2024 the FFmpeg developers.
 x264, Copyright its respective contributors; see x264-GPLv2.txt.
@@ -7,8 +7,8 @@ x264 revision 31e19f92f00c7003fa115047ce50978bc98c3a0d. The combined
 executable is licensed under GNU GPL version 3 or later. It is invoked as
 a separate process by Gaze. See FFmpeg-GPLv3.txt and FFmpeg-build.txt.
 Complete corresponding source and build scripts are freely downloadable
-alongside the installer as Gaze-0.6.0-alpha-encoder-source.zip at:
-https://github.com/bh808303/Gaze/releases/tag/v0.6.0-alpha-installer
+alongside the installer as Gaze-0.7.0-alpha-encoder-source.zip at:
+https://github.com/bh808303/Gaze/releases/tag/v0.7.0-alpha-installer
 Upstream: https://ffmpeg.org/ and https://www.videolan.org/developers/x264.html
 No upstream sources were modified. No nonfree libraries are enabled.
 Windows system libraries and UCRT are provided by Windows.

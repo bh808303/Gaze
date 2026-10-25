@@ -109,3 +109,6 @@ After virtual in-memory ZIP publication succeeded but manual Ctrl+V in Claude De
 # Active extension: Transcribe live batches (2026-10-25)
 
 For the new live-batch work, read `docs/factory/batches/spec.md`, `alignment.md` and `plan.md` in that directory. They supersede this historical specification where Transcribe clipboard, panel, close, limits, and cleanup behavior conflict. Earlier feature records below remain historical. Current manifest is `docs/factory/batches/tasks.json`.
+
+## Active Print Screen extension
+The human requested the selectable exclusive MMB/Print Screen trigger, clarified tap/hold-release behavior, and authorized implementing it. Read docs/factory/printscreen/spec.md and plan.md; these extend the batches specification and supersede any middle-only instruction for the new trigger. Current manifest: docs/factory/printscreen/tasks.json.

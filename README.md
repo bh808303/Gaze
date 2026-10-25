@@ -1,4 +1,4 @@
-# Gaze 0.6 alpha
+# Gaze 0.7 alpha
 
 Gaze is a Windows tray application for recording computer work so AI agents can turn visible actions, clicks, and screen changes into a written timeline, activity log, or work description. This visual “transcription” uses silent screen recordings rather than spoken audio. Capture a selected window, the main monitor, or all monitors, then paste the saved file into an AI application for analysis.
 
@@ -97,13 +97,15 @@ See [CHANGELOG.md](CHANGELOG.md) and [requirements](docs/requirements.md).
 
 ## MSI installer
 
-Download the unsigned x64 MSI from the [installer release](https://github.com/bh808303/Gaze/releases/tag/v0.6.0-alpha-installer). It includes FFmpeg and .NET, a Start-menu shortcut, and uninstall registration. The same release includes encoder corresponding source and SHA256 checksums. See [installer/README.md](installer/README.md) for build instructions, installation behavior and validation limits.
-## Transcribe mode (in development)
+Download the unsigned x64 MSI from the [installer release](https://github.com/bh808303/Gaze/releases/tag/v0.7.0-alpha-installer). It includes FFmpeg and .NET, a Start-menu shortcut, and uninstall registration. The same release includes encoder corresponding source and SHA256 checksums. See [installer/README.md](installer/README.md) for build instructions, installation behavior and validation limits.
+## Screenshot mode (in development)
 
-Transcribe Start opens a live screenshot batch: capture, paste the current PNG list, then use Next Batch to continue. ZIP publishes the current archive and closes; X/Stop closes without export. Claude Desktop Clipboard limits Transcribe to 20 images / 29 MB (off: 100 / 256 MiB); AutoCopy does not affect Transcribe. Keep Gaze running while attachments are read: exit cleans temporary files. See [flow, failures, cleanup and validation limits](docs/transcribe.md). Current integrated Claude compatibility remains untested.
+Screenshot Start opens a live screenshot batch: capture, paste the current PNG list, then use Next Batch to continue. ZIP publishes the current archive and closes; X/Stop closes without export. Claude Desktop Clipboard limits Screenshot to 20 images / 29 MB (off: 100 / 256 MiB); AutoCopy does not affect Screenshot. Accepted PNGs and finished ZIP archives persist in Output/Screenshots; new videos use Output/Videos. Undo retains saved PNG history. Keep Gaze running while attachments are read: exit cleans temporary clipboard staging only. See [flow, failures, cleanup and validation limits](docs/transcribe.md). Current integrated Claude compatibility remains untested.
 
 ## Compact tray menu
-The default menu shows recording controls, status, and capture mode. The header folder icon opens the recordings panel; its back arrow returns to the compact menu. The settings cog opens settings. Recording actions and Quit remain available in the recordings panel. The compact menu grows while armed to keep Cancel arming accessible.
+The default menu shows recording controls, status, and capture mode. The header folder icon opens files with Screenshots or Recordings selected for the current capture mode; buttons switch viewed category and all file actions, including confirmed scoped Clean-up, follow that category. Settings Output retains the Folder key and existing configured root; legacy files stay in place. Its back arrow returns to the compact menu. The settings cog opens settings. Recording actions and Quit remain available in the recordings panel. The compact menu grows while armed to keep Cancel arming accessible.
 
 Visual checks: use `--panel-preview <PNG path> --check-navigation` for navigation checks, `--preview-recordings` for the recordings panel, or `--preview-settings` for settings. Preview uses an isolated sign-in startup value and does not access the Windows startup registry.
 
+
+Screenshot offers an exclusive **Middle mouse** (default) or **Print Screen** trigger in Settings. Tap/release captures the window under the pointer on any monitor; hold and move selects an area clipped to the starting monitor. Modified shortcuts retain their behavior; Print Screen follows its normal path outside Screenshot and in Middle mouse mode. See [Screenshot controls and native validation limits](docs/transcribe.md).

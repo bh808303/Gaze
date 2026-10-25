@@ -17,9 +17,9 @@ Copy-Item (Join-Path $taskWork 'sources/ffmpeg/COPYING.GPLv3') (Join-Path $taskS
 Copy-Item (Join-Path $taskWork 'sources/x264/COPYING') (Join-Path $taskStage 'x264-GPLv2.txt') -Force
 $taskOutput = if ($OutputDirectory) { [IO.Path]::GetFullPath($OutputDirectory) } else { Join-Path $taskRoot 'artifacts/installer' }
 New-Item -ItemType Directory -Path $taskOutput -Force | Out-Null
-$taskZip = Join-Path $taskOutput 'Gaze-0.6.0-alpha-encoder-source.zip'
+$taskZip = Join-Path $taskOutput 'Gaze-0.7.0-alpha-encoder-source.zip'
 Compress-Archive -Path (Join-Path $taskStage '*') -DestinationPath $taskZip -Force
-$taskFiles = @('Gaze-0.6.0-alpha-encoder-source.zip', 'Gaze-0.6.0-alpha-win-x64.msi', 'Gaze.App.exe', 'Gaze.App.dll', 'Gaze.Core.dll', 'Gaze.Panel.dll', 'ffmpeg.exe', 'ffprobe.exe') | Where-Object { Test-Path -LiteralPath (Join-Path $taskOutput $_) }
+$taskFiles = @('Gaze-0.7.0-alpha-encoder-source.zip', 'Gaze-0.7.0-alpha-win-x64.msi', 'Gaze.App.exe', 'Gaze.App.dll', 'Gaze.Core.dll', 'Gaze.Panel.dll', 'ffmpeg.exe', 'ffprobe.exe') | Where-Object { Test-Path -LiteralPath (Join-Path $taskOutput $_) }
 $taskLines = foreach ($name in $taskFiles) {
     $hash = (Get-FileHash (Join-Path $taskOutput $name) -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $name"

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.7.0-alpha installer — 2026-10-25
+
+- Release live Screenshot batches, selectable Middle mouse / Print Screen capture, and the rapid-close crash fix.
+- Save recordings in Output/Videos and persistent PNG/ZIP history in Output/Screenshots, with category file tabs and confirmed scoped cleanup.
+- Increment MSI product version to 0.7.0 while retaining the UpgradeCode and existing settings.
+
+## Persistent Output and file categories — 2026-10-25
+
+- Use Output/Videos for new video recordings and Output/Screenshots for accepted PNGs and final batch ZIPs. Preserve the Folder setting and legacy files; no automatic migration.
+- Save uniquely, retry failures without duplicate output, and retain saved history through Undo, Next Batch, close and exit. Temporary clipboard staging remains separate.
+- Add Screenshots/Recordings file categories defaulting to capture mode. Selected file actions, folder and default-No confirmed Clean-up follow the viewed category; only matching top-level files are recycled.
+
+
+## Screenshot mode label — 2026-10-25
+
+- Rename the user-facing Transcribe mode and trigger labels to Screenshot; retain existing saved settings and capture behavior.
+
+## Transcribe trigger — 2026-10-25
+
+- Add a persisted exclusive Middle mouse / Print Screen Transcribe trigger, both settings surfaces, selected-session hints, and controlled save/cancel/routing regression evidence. Native Snipping and physical multi-monitor checks remain deferred.
+
 ## Live Transcribe batches — 2026-10-25
 
 - Extend configured-folder Clear to top-level MP4, PNG and ZIP files with a default-No confirmation before moving them to the Recycle Bin; preserve other files and subfolders.

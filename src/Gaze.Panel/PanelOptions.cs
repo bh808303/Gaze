@@ -3,6 +3,7 @@ namespace Gaze.Fluent;
 public sealed class PanelOptions
 {
     public bool? StartAtSignIn { get; set; }
+    public TranscribeTrigger TranscribeTrigger { get; set; } = TranscribeTrigger.MiddleMouse;
     public CaptureMode Mode { get; set; }
     public WindowCanvasMode Canvas { get; set; }
     public int FrameRate { get; set; } = 5;

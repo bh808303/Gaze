@@ -7,6 +7,7 @@ internal sealed class Settings
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public bool? StartAtSignIn { get; set; }
+    public TranscribeTrigger TranscribeTrigger { get; set; } = TranscribeTrigger.MiddleMouse;
     public CaptureMode Mode { get; set; }
     public WindowCanvasMode WindowCanvas { get; set; } = WindowCanvasMode.OriginalWindow;
     public int FrameRate { get; set; } = 5;
@@ -19,22 +20,24 @@ internal sealed class Settings
     public bool DoubleEscape { get; set; } = true;
     public uint Modifiers { get; set; } = 3;
     public Keys Key { get; set; } = Keys.PrintScreen;
-    public string Folder { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Gaze");
+    public string Folder { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Gaze", "Output");
     private static string PathName => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Gaze", "settings.json");
-    internal static Settings Load()
+    internal static Settings Load(string? path = null)
     {
-        if (!File.Exists(PathName)) return new();
-        var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(PathName)) ?? new();
-        if (settings.FrameRate is < 1 or > 30 || string.IsNullOrWhiteSpace(settings.Folder) || !Enum.IsDefined(settings.Mode) || !Enum.IsDefined(settings.WindowCanvas) || !Enum.IsDefined(settings.Compression))
-            throw new InvalidDataException($"Invalid settings in {PathName}.");
+        path ??= PathName;
+        if (!File.Exists(path)) return new();
+        var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(path)) ?? new();
+        if (settings.FrameRate is < 1 or > 30 || string.IsNullOrWhiteSpace(settings.Folder) || !Enum.IsDefined(settings.TranscribeTrigger) || !Enum.IsDefined(settings.Mode) || !Enum.IsDefined(settings.WindowCanvas) || !Enum.IsDefined(settings.Compression))
+            throw new InvalidDataException($"Invalid settings in {path}.");
         return settings;
     }
-    internal void Save()
+    internal void Save(string? path = null)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(PathName)!);
-        var temp = PathName + ".tmp";
+        path ??= PathName;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var temp = path + ".tmp";
         File.WriteAllText(temp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
-        File.Move(temp, PathName, true);
+        File.Move(temp, path, true);
     }
     internal TimelineCollectionOptions CollectionOptions => new() { RecordTimelineMetadata = RecordTimelineMetadata, KeyboardTimeline = KeyboardTimeline };
     internal string Shortcut => $"{((Modifiers & 2) != 0 ? "Ctrl + " : "")}{((Modifiers & 1) != 0 ? "Alt + " : "")}{((Modifiers & 4) != 0 ? "Shift + " : "")}{Key}";
@@ -98,7 +101,9 @@ internal sealed class SettingsForm : Form
             Wide(card);
         }
         var mode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
-        mode.Items.AddRange(["Selected window", "All monitors", "Main monitor", "Transcribe"]); mode.SelectedIndex = (int)settings.Mode;
+        mode.Items.AddRange(["Selected window", "All monitors", "Main monitor", "Screenshot"]); mode.SelectedIndex = (int)settings.Mode;
+        var trigger = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
+        trigger.Items.AddRange(["Middle mouse", "Print Screen"]); trigger.SelectedIndex = (int)settings.TranscribeTrigger;
         var canvas = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, Enabled = settings.Mode == CaptureMode.Window };
         canvas.Items.AddRange(["Original window size (default)", "Selected window's monitor size"]);
         canvas.SelectedIndex = (int)settings.WindowCanvas;
@@ -132,23 +137,24 @@ internal sealed class SettingsForm : Form
         Row("Mouse clicks", clicks);
         Row("Timeline metadata", metadata); Row("Keyboard timeline", keyboard);
         Section("Controls", "Click the tray icon or use your shortcut to arm, record, and save.");
+        Row("Screenshot trigger", trigger);
         Row("Shortcut", key);
         Wide(new Label { Text = "Select the shortcut field, then press your preferred key combination.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
         escape.Text = "Press Esc twice within 1 second to stop";
         Row("Stop confirmation", escape);
-        Section("Saving", "Choose where recordings go and keep them ready to paste.");
+        Section("Saving", "Choose the Output root for Videos and Screenshots.");
         var folderRow = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 2, Margin = Padding.Empty };
         folderRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); folderRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        var browse = new Button { Text = "Browse…", AutoSize = true, AccessibleName = "Browse recording folder" };
+        var browse = new Button { Text = "Browse…", AutoSize = true, AccessibleName = "Browse Output root" };
         browse.Click += (_, _) =>
         {
-            using var picker = new FolderBrowserDialog { Description = "Choose a folder for Gaze recordings", UseDescriptionForTitle = true, SelectedPath = folder.Text };
+            using var picker = new FolderBrowserDialog { Description = "Choose the Gaze Output root", UseDescriptionForTitle = true, SelectedPath = folder.Text };
             if (picker.ShowDialog(this) == DialogResult.OK) folder.Text = picker.SelectedPath;
         };
         folderRow.Controls.Add(folder, 0, 0); folderRow.Controls.Add(browse, 1, 0);
-        Row("Save folder", folderRow); Row("File size", split);
+        Row("Output", folderRow); Row("File size", split);
         split.AccessibleName = "Claude Desktop Clipboard";
-        Wide(new Label { Text = "Video: 29 MB parts. Transcribe: 20 images / 29 MB per batch. Video splitting re-encodes; Auto-copy copies all parts.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
+        Wide(new Label { Text = "Video: 29 MB parts. Screenshot: 20 images / 29 MB per batch. Video splitting re-encodes; Auto-copy copies all parts.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
         Row("After saving", copy);
         var save = new Button { Text = "Save settings", AutoSize = true, Padding = new Padding(12, 4, 12, 4), BackColor = Color.FromArgb(0, 103, 184), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
         save.FlatAppearance.BorderSize = 0;
@@ -160,7 +166,7 @@ internal sealed class SettingsForm : Form
             try
             {
                 if (modifiers == 0 || shortcut is Keys.Escape or Keys.F12) throw new InvalidOperationException("Use a modified shortcut other than Esc or F12.");
-                var proposed = new Settings { Mode = (CaptureMode)mode.SelectedIndex, WindowCanvas = (WindowCanvasMode)canvas.SelectedIndex, FrameRate = (int)fps.Value,
+                var proposed = new Settings { TranscribeTrigger = (TranscribeTrigger)trigger.SelectedIndex, Mode = (CaptureMode)mode.SelectedIndex, WindowCanvas = (WindowCanvasMode)canvas.SelectedIndex, FrameRate = (int)fps.Value,
                     Compression = (CompressionMode)compression.SelectedIndex,
                     Folder = Path.GetFullPath(folder.Text), Modifiers = modifiers, Key = shortcut,
                     RecordTimelineMetadata = metadata.Checked, KeyboardTimeline = keyboard.Checked, ClickHighlight = clicks.Checked, AutoCopy = copy.Checked, SplitAt29Mb = split.Checked, DoubleEscape = escape.Checked };

@@ -1,0 +1,16 @@
+{
+  "completedTaskIds": [
+    "PS01",
+    "PS02"
+  ],
+  "checks": [
+    "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "pwsh -NoProfile -File scripts/Build.ps1 -Release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "dotnet run --project tests/Gaze.Settings.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "python -m unittest discover -s tests -p test_timeline_reader.py; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "git diff --check; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "dotnet run --project tests/Gaze.Clipboard.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "dotnet artifacts/app/Gaze.App.dll --transcribe-trigger-probe docs/factory/runs/printscreen-gate; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+  ],
+  "tasks": []
+}

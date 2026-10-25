@@ -3,9 +3,10 @@ namespace Gaze.App;
 
 // UI-thread coordinator; native clipboard and window lifetime are injected boundaries.
 internal sealed class TranscribeBatchFlow(TranscribeSession session, Action<IReadOnlyList<TranscribeCapture>> publish,
-    Action<IReadOnlyList<TranscribeCapture>> zip, Action<bool> close)
+    Action<IReadOnlyList<TranscribeCapture>> zip, Action<bool> close, OutputStore? output = null)
 {
     private bool publishing;
+    private bool persistenceFailed;
     private bool retryArchive;
     internal TranscribeSession Session => session;
     internal string Status { get; private set; } = "Clipboard unchanged";
@@ -15,7 +16,7 @@ internal sealed class TranscribeBatchFlow(TranscribeSession session, Action<IRea
     internal bool CanZip => !Closed && !publishing && session.Count > 0;
     internal bool Accept(byte[] bytes, string title, int generation)
     {
-        if (Closed || publishing || generation != Generation) return false;
+        if (Closed || publishing || persistenceFailed || generation != Generation) return false;
         if (!session.AddCapture(bytes, title))
         {
             Status = session.LastCaptureRejection is TranscribeCaptureRejection.CountLimit or TranscribeCaptureRejection.ByteLimit
@@ -25,8 +26,8 @@ internal sealed class TranscribeBatchFlow(TranscribeSession session, Action<IRea
         }
         retryArchive = false; Retry(); return true;
     }
-    internal void Undo() { if (Closed || publishing) return; Generation++; session.Undo(); retryArchive = false; Retry(); }
-    internal void NextBatch() { if (Closed || publishing) return; Generation++; session.NextBatch(); retryArchive = false; Retry(); }
+    internal void Undo() { if (Closed || publishing || persistenceFailed) return; Generation++; session.Undo(); retryArchive = false; Retry(); }
+    internal void NextBatch() { if (Closed || publishing || persistenceFailed) return; Generation++; session.NextBatch(); retryArchive = false; Retry(); }
     internal void Retry() => Publish(retryArchive);
     internal void Zip() { if (CanZip) Publish(true); }
     private void Publish(bool archive)
@@ -37,18 +38,23 @@ internal sealed class TranscribeBatchFlow(TranscribeSession session, Action<IRea
         bool success = false;
         try
         {
+            persistenceFailed = true;
+            output?.SaveCaptures(session.Captures);
+            if (archive) output?.SaveZip(session.Captures);
+            persistenceFailed = false;
             if (archive) zip(session.Captures); else publish(session.Captures);
             NeedsRetry = false;
             Status = session.Count == 0 ? "Batch empty; owned clipboard offering cleared" : "Clipboard current";
             success = true;
         }
-        catch (Exception error) { NeedsRetry = true; Status = "Clipboard error; retry current batch. " + error.Message; }
+        catch (Exception error) { NeedsRetry = true; Status = (persistenceFailed ? "Output save failed; Retry before capturing, Undo, Next Batch or closing. " : "Clipboard error; retry current batch. ") + error.Message; }
         finally { publishing = false; }
         if (archive && success) { Closed = true; Generation++; close(true); }
     }
     internal void Close()
     {
         if (Closed || publishing) return;
+        if (persistenceFailed) { Retry(); if (persistenceFailed || Closed) return; }
         Closed = true; Generation++; close(false);
     }
 }
