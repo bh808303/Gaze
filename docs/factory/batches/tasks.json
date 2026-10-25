@@ -1,0 +1,56 @@
+{
+  "completedTaskIds": [],
+  "checks": [
+    "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "pwsh -NoProfile -File scripts/Build.ps1 -Release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "dotnet run --project tests/Gaze.Settings.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "python -m unittest discover -s tests -p test_timeline_reader.py; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "git diff --check; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+  ],
+  "tasks": [
+    {
+      "id": "B01",
+      "description": "Read docs/factory/batches/spec.md and alignment.md. Implement current-batch core rules: PNG byte count, selectable limits (Claude on: 20 / 29,000,000; off: 100 / 268,435,456), rejection feedback without changing previous batch, Next Batch reset, Undo accounting. Keep current constructors/callers compiling until integration. Focus Gaze.Core and Gaze.Tests. Existing video unchanged.",
+      "acceptanceCriteria": [
+        "Meaningful tests fail for missing batch reset and exact count/byte boundaries before implementation; prove rejection preserves captures/order/bytes and accounting recovers with Undo/reset.",
+        "Expose simple core contracts for new batch, limits, bytes and rejection reason; keep immutable captures, archive ordering/names and existing lifecycle tests intact until adapter migration.",
+        "All mandatory checks pass; document contracts needed by next worker in docs/factory/batches/build.md."
+      ],
+      "testCommand": "dotnet run --project tests/Gaze.Tests",
+      "dependsOn": []
+    },
+    {
+      "id": "B02",
+      "description": "Read docs/factory/batches/spec.md and B01 contracts. Implement testable live PNG file-drop publication in TranscribeExporter or a tightly scoped helper, ordered sanitized names, ownership-aware clear, current snapshot retry, session-independent backing-file lifetime, current-batch ZIP limit check/publication. Add safe startup/exit cleanup support limited to owned Transcribe artifacts, no reparse traversal or unrelated/saved-file deletion. Do not wire UI/host yet; preserve compilation of current callers/probes with compatibility as needed. No real clipboard mutation in automated unit checks; inject native delegates and temp roots. Add focused tests via Windows test executable or existing export checks.",
+      "acceptanceCriteria": [
+        "RED/GREEN behavioral tests verify multi-file batch ordering/data, overwritten clipboard preservation on clear, capture/Undo/reset retry using latest snapshot, partial write/publication failures retaining prior usable data, and ZIP rejecting bytes over 29MB before clipboard mutation.",
+        "Published PNG/ZIP files survive panel/session closure; disposal/startup cleanup support removes only owned temp files safely, refuses redirected paths and active-instance collisions, leaves configured saved files untouched. Backing files of previous batches remain until app exit.",
+        "Expose documented adapter APIs for B03. Keep core/current adapters compiling and all mandatory checks passing; do not silently reduce required testing."
+      ],
+      "testCommand": "pwsh -NoProfile -File scripts/Build.ps1",
+      "dependsOn": ["B01"]
+    },
+    {
+      "id": "B03",
+      "description": "Read docs/factory/batches/spec.md and prior build contracts. Wire controller/TranscribeWindow/TrayContext/Program to live batches. Topmost panel with Undo, Next Batch, ZIP, count/size/latest/clipboard status/retry. No Done/Cancel or close prompts. Stop/action shortcut/double Esc/X close without ZIP preserving files/offering; ZIP closes only on successful current-batch publication. Empty Start leaves clipboard unchanged. Snapshot Claude toggle, ignore AutoCopy in Transcribe. Integrate startup/exit cleanup after singleton ownership, retain exporters regardless of close-vs-ZIP. Rework obsolete TranscribeIntegrationProbe assertions to revised agreed lifecycle without removing coverage. Native/injected integration tests must exercise behavior, not just source-string checks. This bounded path may span controller/panel/host/probe files, no video changes.",
+      "acceptanceCriteria": [
+        "RED/GREEN acceptance test for missing integrated batch behavior precedes production wiring. Tests prove accepted capture publishes full batch, rejected capture preserves old clipboard and persistent warning, Undo/Next Batch and latest-state retry, X/Stop close vs ZIP export, empty ZIP disabled and empty session clipboard unchanged.",
+        "Always-on-top panel displays correct current count/size/thumbnail/clipboard state and accessible controls; limit/copy errors persist after capture refresh. Pending capture cannot reappear after closure/reset. New session does not overwrite prior offering until first successful capture.",
+        "Startup/exit cleanup runs only for app-owned temp staging with safe ownership; panel close keeps staged files. Update native fixture to test current UX, run feasible checks and record unavailable desktop/Claude cases honestly. All mandatory checks pass; existing video routing/splitting behavior unchanged."
+      ],
+      "testCommand": "pwsh -NoProfile -File scripts/Build.ps1",
+      "dependsOn": ["B02"]
+    },
+    {
+      "id": "B04",
+      "description": "Read docs/factory/batches/spec.md. Rename existing split setting UI in WPF/WinForms to Claude Desktop Clipboard, accessible name and concise helper describing video 29MB parts and Transcribe 20 images/29MB batch; retain persisted SplitAt29Mb key and existing video behavior. Update any actual UI validation probes expecting previous label. Add meaningful setting/panel regression coverage, user README/docs/transcribe.md/changelog for final flow, limits, failures and Gaze-exit cleanup. Run final checks and feasible panel evidence; no actual Claude upload/messages. Record verification gaps rather than claim acceptance.",
+      "acceptanceCriteria": [
+        "RED/GREEN regression tests prove user-facing setting label/help and persistence compatibility, both settings surfaces; existing AutoCopy/video tests unchanged and pass.",
+        "Documentation accurately explains Start/capture/paste/Next Batch/ZIP/X, toggle on/off limits, warning rejection, clipboard retry/overwrite, staged lifetime and startup/exit cleanup; no claims of universal Claude support or unperformed tests.",
+        "All mandatory checks pass; record final verification and actionable risks in docs/factory/batches/verification.md, with feasible UI evidence and explicit untested cases."
+      ],
+      "testCommand": "dotnet run --project tests/Gaze.Settings.Tests",
+      "dependsOn": ["B03"]
+    }
+  ]
+}
