@@ -30,3 +30,6 @@ Batch size is encoded data, not peak RAM. Reject before retaining a new oversize
 
 ## Authorization
 User agreed full design after the interview and instructed building through Software Factory. No additional product decisions pending. Routine task decomposition/local commits and worker execution implement that authorization; no merge/deployment authorized.
+
+## AC11: saved-folder Clear follow-up (2026-10-25)
+Human answered the previously pending question: "Include PNG and ZIP alongside MP4, with confirmation". Clear now includes all top-level files whose exact extension is .mp4, .png or .zip (case insensitive) in the configured folder, after an explicit default-No confirmation naming scope/count/folder, using the existing Recycle Bin behavior. Exclude other extensions and subfolders. Cancel/empty/missing folder is a no-op. Automatic temp cleanup remains separate and never broadens into saved-folder cleanup. Do not change the recordings gallery or video capture/export. Test selection and confirmation/cancellation with injected recycle callbacks; no actual user files recycled during automated validation. This authorization supersedes the earlier pending-choice notes.
