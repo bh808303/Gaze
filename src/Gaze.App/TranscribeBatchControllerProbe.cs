@@ -44,7 +44,7 @@ internal static class TranscribeBatchControllerProbe
                 Assert(window.Topmost && !window.ZipEnabled && !window.HasThumbnail && ReferenceEquals(previous, clipboard), "topmost empty Start preserves clipboard; ZIP disabled");
                 controller.Finish(); Assert(closes == 0, "empty ZIP stays open");
                 await Capture(); var first = Paths().Single();
-                Assert(controller.Count == 1 && window.HasThumbnail && window.ZipEnabled && window.BatchSummary.Contains(bytes.Length.ToString("N0")), "accepted capture updates count size thumbnail ZIP and live clipboard");
+                Assert(controller.Count == 1 && window.HasThumbnail && window.ZipEnabled && window.BatchSummary.Contains(bytes.Length.ToString("N0") + " bytes"), "accepted capture updates count size thumbnail ZIP and live clipboard");
                 await Capture(); Assert(Paths().Length == 2 && Paths()[0] == first && writes == 2, "controller publishes full batch without rewriting staged captures");
                 fail = true; await Capture();
                 Assert(controller.Count == 3 && Paths().Length == 2 && window.RetryVisible && window.ClipboardStatus.Contains("error"), "failed copy retains capture and persistent clipboard error after async refresh");
@@ -71,7 +71,7 @@ internal static class TranscribeBatchControllerProbe
                 using (var zip = System.IO.Compression.ZipFile.OpenRead(Paths().Single())) Assert(zip.Entries.Count == 2, "current ZIP contains one PNG and instructions");
                 controller = New(); for (int i=0;i<20;i++) await Capture(); offering = clipboard;
                 await Capture();
-                Assert(controller.Count == 20 && ReferenceEquals(offering, clipboard) && controller.WindowForValidation.ClipboardStatus.Contains("limit"), "rejected capture preserves old clipboard and warning through refresh");
+                Assert(controller.Count == 20 && ReferenceEquals(offering, clipboard) && controller.WindowForValidation.ClipboardStatus.Contains("20 images / 29 MB") && controller.WindowForValidation.ClipboardStatus.Contains("Next Batch or ZIP") && !controller.WindowForValidation.ClipboardStatus.Contains("CountLimit") && controller.WindowForValidation.BatchSummary.Contains("KB"), "rejected capture preserves old clipboard and warning through refresh");
                 controller.RenderEvidence(Path.Combine(evidence,"limit-panel.png"));
                 controller.WindowForValidation.Close();
                 for (int i=0; closes < 3 && i<100; i++) await Task.Delay(10);
@@ -85,6 +85,13 @@ internal static class TranscribeBatchControllerProbe
                 });
                 await Capture(); controller.Finish();
                 Assert(closes == 4 && exported, "ZIP completes once after guarded publication");
+                controller = New(); await Capture(); fail = true; controller.Finish();
+                Assert(closes == 4 && controller.Count == 1 && controller.WindowForValidation.RetryVisible, "failed ZIP exposes Retry without closing");
+                controller.RetryForValidation();
+                Assert(closes == 4 && controller.Count == 1 && controller.WindowForValidation.RetryVisible, "repeated failed ZIP Retry keeps real panel and batch");
+                controller.RenderEvidence(Path.Combine(evidence, "zip-retry-panel.png"));
+                fail = false; controller.RetryForValidation();
+                Assert(closes == 5 && exported && Paths().Single().EndsWith(".zip"), "real panel Retry after failed ZIP publishes archive then closes");
                 controller = null;
                 log.Add("UNTESTED: real desktop input/pixels, Claude paste/ingestion, mixed DPI/multiple monitors, native tray shortcuts and video capture.");
                 Environment.ExitCode = 0;

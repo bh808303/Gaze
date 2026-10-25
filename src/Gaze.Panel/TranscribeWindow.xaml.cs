@@ -35,7 +35,7 @@ public partial class TranscribeWindow : FluentWindow
     public nint NativeHandle => new WindowInteropHelper(this).EnsureHandle();
     public void Refresh(TranscribeSession session, bool busy, string? status = null, bool needsRetry = false)
     {
-        CountText.Text = $"{session.Count} capture{(session.Count == 1 ? "" : "s")} / {session.TotalPngBytes:N0} PNG bytes";
+        CountText.Text = $"{session.Count} capture{(session.Count == 1 ? "" : "s")} / {FormatSize(session.TotalPngBytes)} PNG";
         UndoButton.IsEnabled = !busy && session.State == TranscribeState.Capturing && session.Count > 0;
         DoneButton.IsEnabled = !busy && session.Count > 0;
         NextButton.IsEnabled = true;
@@ -53,6 +53,8 @@ public partial class TranscribeWindow : FluentWindow
         }
         Empty.Visibility = displayed == null ? Visibility.Visible : Visibility.Collapsed;
     }
+    private static string FormatSize(long bytes) => bytes >= 1_000_000
+        ? $"{bytes / 1_000_000d:0.##} MB" : bytes >= 1_000 ? $"{bytes / 1_000d:0.##} KB" : $"{bytes:N0} bytes";
     public void CloseAfterFinish() { closing = true; Close(); }
     public void RenderEvidence(string path)
     {

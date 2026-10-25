@@ -9,7 +9,7 @@
 
 ## B01 validation
 
-Evidence: `docs/factory/runs/20261025-120019-547`. Red tests compiled and failed on absent limit constructor / NextBatch member before production changes. Runtime lookup enabled a behavioral red without introducing production stubs; tests were converted to typed calls after implementation. Boundary tests allocate real encoded-byte payloads (encoding itself is validated by the adapter), including the 256 MiB guardrail. Native clipboard/Claude ingestion and desktop capture were not tested by this core task.
+Evidence: `docs/factory/runs/20261025-120019-547`. The original RED compiled through runtime lookup but failed on absent limit constructor / NextBatch APIs before production changes. This was an API-presence failure, not a behavioral RED, and was not accepted. Tests were converted to typed calls after implementation. The later recovery retry below supplies the genuine preimplementation behavioral RED. Boundary tests allocate real encoded-byte payloads (encoding itself is validated by the adapter), including the 256 MiB guardrail. Native clipboard/Claude ingestion and desktop capture were not tested by this core task.
 
 Validation completed: core red exit 1, green exit 0; typed tests green exit 0; Debug and Release app builds passed with cached assets, `-m:1` and `UseSharedCompilation=false` (zero warnings/errors). Original Build.ps1 invocations exited 1 during restore; cached parallel build also exited 1 without diagnostics. Serial cached builds establish callers compile without changing scripts. Settings passed. Python Store alias failed, installed interpreter via `py -3.14` passed all 5 timeline tests. See per-command logs/exit codes for exact outcomes. No native desktop or Claude validation performed.
 

@@ -2,7 +2,8 @@
   "completedTaskIds": [
     "B01",
     "B02",
-    "B03"
+    "B03",
+    "B04"
   ],
   "checks": [
     "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
@@ -12,20 +13,5 @@
     "git diff --check; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
     "dotnet run --project tests/Gaze.Clipboard.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
   ],
-  "tasks": [
-    {
-      "id": "B04",
-      "description": "Read docs/factory/batches/spec.md. Rename existing split setting UI in WPF/WinForms to Claude Desktop Clipboard, accessible name and concise helper describing video 29MB parts and Transcribe 20 images/29MB batch; retain persisted SplitAt29Mb key and existing video behavior. Update any actual UI validation probes expecting previous label. Add meaningful setting/panel regression coverage, user README/docs/transcribe.md/changelog for final flow, limits, failures and Gaze-exit cleanup. Run final checks and feasible panel evidence; no actual Claude upload/messages. Record verification gaps rather than claim acceptance. EvidencePaths must be individual existing FILE paths, never directories. Behavioral RED must fail intended assertions (use compiling API scaffold first if necessary), not just missing method/constructor APIs. Installed Python is resolvable by parent PATH setup; do not change mandatory checks. Worker environment: BuildInParallel=false allows unchanged Build.ps1 scripts to run; use env var and serial cached -m:1 if needed, preserve actual command outputs. Parent UI review refinement: in TranscribeBatchFlow, Retry after failed ZIP must retry ZIP and close only on success; capture/Undo/NextBatch reset retry intent to current PNG publication so no stale ZIP or accidental close. Add meaningful failing regression before fixing this. Replace internal CountLimit/ByteLimit warning strings with actual user-facing count/size and Next Batch/ZIP guidance, retain persistent warnings. Show readable size units if practical, keep native fixture status assertions in sync without weakening behavior. Document accurate B01 retry history rather than calling original missing-API RED behavioral. B03 controller probe passes, actual native mouse injection/Claude/tray-video validation unavailable; do not repeat unavailable native input injection without new evidence. Render final settings/session panel and inspect it.",
-      "acceptanceCriteria": [
-        "RED/GREEN regression tests prove user-facing setting label/help and persistence compatibility, both settings surfaces; existing AutoCopy/video tests unchanged and pass.",
-        "Documentation accurately explains Start/capture/paste/Next Batch/ZIP/X, toggle on/off limits, warning rejection, clipboard retry/overwrite, staged lifetime and startup/exit cleanup; no claims of universal Claude support or unperformed tests.",
-        "All mandatory checks pass; record final verification and actionable risks in docs/factory/batches/verification.md, with feasible UI evidence and explicit untested cases.",
-        "ZIP-failure Retry retries current ZIP and closes only after successful publication; capture/Undo/reset supersede archive retry. Tests fail before this behavior is added, then pass; user-facing limit warnings name actual limits without internal enum codes."
-      ],
-      "testCommand": "dotnet run --project tests/Gaze.Settings.Tests",
-      "dependsOn": [
-        "B03"
-      ]
-    }
-  ]
+  "tasks": []
 }

@@ -31,6 +31,28 @@ internal static class Program
             var modeChoices = Controls(form).OfType<ComboBox>().Single(c => c.Items.Contains("Transcribe"));
             if (modeChoices.Items.Count != 4 || modeChoices.Items[3]?.ToString() != "Transcribe") throw new Exception("Capture mode dropdown mapping changed");
             if (!toggle.Checked) throw new Exception("Settings UI lost persisted toggle");
+            var compatible = JsonSerializer.Deserialize<Settings>("{\"SplitAt29Mb\":true,\"AutoCopy\":false}")!;
+            var roundtrip = JsonSerializer.Serialize(compatible);
+            if (!roundtrip.Contains("\"SplitAt29Mb\":true") || compatible.AutoCopy) throw new Exception("Legacy split key or AutoCopy compatibility lost");
+            using var clipboardForm = new SettingsForm(compatible, _ => {});
+            var clipboardToggle = Controls(clipboardForm).OfType<CheckBox>().SingleOrDefault(c => c.Text == "Claude Desktop Clipboard");
+            if (clipboardToggle is not { Checked: true, AccessibleName: "Claude Desktop Clipboard" }) throw new Exception("WinForms Claude Desktop Clipboard label/accessibility/persisted value missing");
+            const string help = "Video: 29 MB parts. Transcribe: 20 images / 29 MB per batch.";
+            if (!Controls(clipboardForm).OfType<Label>().Any(c => c.Text.Contains(help))) throw new Exception("WinForms clipboard limits helper missing");
+            foreach (bool enabled in new[] { false, true })
+            {
+                Settings? saved = null;
+                using var saveForm = new SettingsForm(compatible, value => saved = value);
+                saveForm.Show();
+                Controls(saveForm).OfType<Button>().Single(c => c.Text == "Saving").PerformClick();
+                Controls(saveForm).OfType<CheckBox>().Single(c => c.Text == "Claude Desktop Clipboard").Checked = enabled;
+                Controls(saveForm).OfType<Button>().Single(c => c.Text == "Save settings").PerformClick();
+                if (saved == null || saved.SplitAt29Mb != enabled || saved.AutoCopy) throw new Exception("Saving clipboard setting changed legacy key or independent AutoCopy");
+                compatible = JsonSerializer.Deserialize<Settings>(JsonSerializer.Serialize(saved))!;
+            }
+            var xaml = System.Xml.Linq.XDocument.Load("src/Gaze.Panel/PanelWindow.xaml");
+            var splitUi = xaml.Descendants().Single(e => (string?)e.Attribute(System.Xml.Linq.XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml")) == "SplitAt29Mb");
+            if ((string?)splitUi.Attribute("AutomationProperties.Name") != "Claude Desktop Clipboard" || !xaml.Descendants().Any(e => (string?)e.Attribute("Text") == "Claude Desktop Clipboard") || !xaml.Descendants().Any(e => (string?)e.Attribute("Text") == help)) throw new Exception("WPF clipboard setting label, accessible name or helper missing");
             Console.WriteLine("PASS actual Settings migration/persistence, panel DTO and settings toggle"); return 0;
         } catch(Exception e) { Console.WriteLine("FAIL " + e.Message); return 1; }
     }

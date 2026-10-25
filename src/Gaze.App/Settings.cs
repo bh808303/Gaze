@@ -121,7 +121,7 @@ internal sealed class SettingsForm : Form
         var keyboard = new CheckBox { Text = "Keyboard events in timeline", Checked = settings.KeyboardTimeline, AutoSize = true };
         var clicks = new CheckBox { Text = "Highlight mouse clicks", Checked = settings.ClickHighlight, AutoSize = true };
         var copy = new CheckBox { Text = "Copy saved files to clipboard", Checked = settings.AutoCopy, AutoSize = true };
-        var split = new CheckBox { Text = "Split recordings over 29 MB", Checked = settings.SplitAt29Mb, AutoSize = true };
+        var split = new CheckBox { Text = "Claude Desktop Clipboard", AccessibleName = "Claude Desktop Clipboard", Checked = settings.SplitAt29Mb, AutoSize = true };
         var escape = new CheckBox { Text = "Double-Esc stops within 1 second", Checked = settings.DoubleEscape, AutoSize = true };
         Section("Capture", "Record a window, your main monitor, or all monitors.");
         Row("Capture mode", mode); Row("Window canvas", canvas);
@@ -147,7 +147,8 @@ internal sealed class SettingsForm : Form
         };
         folderRow.Controls.Add(folder, 0, 0); folderRow.Controls.Add(browse, 1, 0);
         Row("Save folder", folderRow); Row("File size", split);
-        Wide(new Label { Text = "Save larger recordings as numbered MP4 parts of at most 29 MB each. Splitting takes extra time and re-encodes the video at the selected compression. Auto-copy copies all parts.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
+        split.AccessibleName = "Claude Desktop Clipboard";
+        Wide(new Label { Text = "Video: 29 MB parts. Transcribe: 20 images / 29 MB per batch. Video splitting re-encodes; Auto-copy copies all parts.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
         Row("After saving", copy);
         var save = new Button { Text = "Save settings", AutoSize = true, Padding = new Padding(12, 4, 12, 4), BackColor = Color.FromArgb(0, 103, 184), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
         save.FlatAppearance.BorderSize = 0;
