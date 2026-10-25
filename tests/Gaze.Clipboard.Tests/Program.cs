@@ -126,6 +126,7 @@ internal static class Program
             Check(clears == 1, "explicit stop clears own offering");
             Console.WriteLine("PASS injected OLE failure retained/retried; stop preserves replacement clipboard and releases own offering");
             owner.Invoke(CheckStaging);
+            LiveBatchChecks.Run();
             TranscribeExportChecks.Run();
             Check(GetClipboardSequenceNumber() == clipboardSequence, "real clipboard sequence unchanged");
             Console.WriteLine("PASS real clipboard sequence unchanged");

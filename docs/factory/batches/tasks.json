@@ -1,31 +1,20 @@
 {
   "completedTaskIds": [
-    "B01"
+    "B01",
+    "B02"
   ],
   "checks": [
     "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
     "pwsh -NoProfile -File scripts/Build.ps1 -Release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
     "dotnet run --project tests/Gaze.Settings.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
     "python -m unittest discover -s tests -p test_timeline_reader.py; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
-    "git diff --check; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+    "git diff --check; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "dotnet run --project tests/Gaze.Clipboard.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
   ],
   "tasks": [
     {
-      "id": "B02",
-      "description": "Read docs/factory/batches/spec.md and B01 contracts. Implement testable live PNG file-drop publication in TranscribeExporter or a tightly scoped helper, ordered sanitized names, ownership-aware clear, current snapshot retry, session-independent backing-file lifetime, current-batch ZIP limit check/publication. Add safe startup/exit cleanup support limited to owned Transcribe artifacts, no reparse traversal or unrelated/saved-file deletion. Do not wire UI/host yet; preserve compilation of current callers/probes with compatibility as needed. No real clipboard mutation in automated unit checks; inject native delegates and temp roots. Add focused tests via Windows test executable or existing export checks. EvidencePaths must be individual existing FILE paths, never directories. Behavioral RED must fail intended assertions (use compiling API scaffold first if necessary), not just missing method/constructor APIs. Installed Python is resolvable by parent PATH setup; do not change mandatory checks. Worker environment: BuildInParallel=false allows unchanged Build.ps1 scripts to run; use env var and serial cached -m:1 if needed, preserve actual command outputs.",
-      "acceptanceCriteria": [
-        "RED/GREEN behavioral tests verify multi-file batch ordering/data, overwritten clipboard preservation on clear, capture/Undo/reset retry using latest snapshot, partial write/publication failures retaining prior usable data, and ZIP rejecting bytes over 29MB before clipboard mutation.",
-        "Published PNG/ZIP files survive panel/session closure; disposal/startup cleanup support removes only owned temp files safely, refuses redirected paths and active-instance collisions, leaves configured saved files untouched. Backing files of previous batches remain until app exit.",
-        "Expose documented adapter APIs for B03. Keep core/current adapters compiling and all mandatory checks passing; do not silently reduce required testing."
-      ],
-      "testCommand": "pwsh -NoProfile -File scripts/Build.ps1",
-      "dependsOn": [
-        "B01"
-      ]
-    },
-    {
       "id": "B03",
-      "description": "Read docs/factory/batches/spec.md and prior build contracts. Wire controller/TranscribeWindow/TrayContext/Program to live batches. Topmost panel with Undo, Next Batch, ZIP, count/size/latest/clipboard status/retry. No Done/Cancel or close prompts. Stop/action shortcut/double Esc/X close without ZIP preserving files/offering; ZIP closes only on successful current-batch publication. Empty Start leaves clipboard unchanged. Snapshot Claude toggle, ignore AutoCopy in Transcribe. Integrate startup/exit cleanup after singleton ownership, retain exporters regardless of close-vs-ZIP. Rework obsolete TranscribeIntegrationProbe assertions to revised agreed lifecycle without removing coverage. Native/injected integration tests must exercise behavior, not just source-string checks. This bounded path may span controller/panel/host/probe files, no video changes. EvidencePaths must be individual existing FILE paths, never directories. Behavioral RED must fail intended assertions (use compiling API scaffold first if necessary), not just missing method/constructor APIs. Installed Python is resolvable by parent PATH setup; do not change mandatory checks. Worker environment: BuildInParallel=false allows unchanged Build.ps1 scripts to run; use env var and serial cached -m:1 if needed, preserve actual command outputs.",
+      "description": "Read docs/factory/batches/spec.md and prior build contracts. Wire controller/TranscribeWindow/TrayContext/Program to live batches. Topmost panel with Undo, Next Batch, ZIP, count/size/latest/clipboard status/retry. No Done/Cancel or close prompts. Stop/action shortcut/double Esc/X close without ZIP preserving files/offering; ZIP closes only on successful current-batch publication. Empty Start leaves clipboard unchanged. Snapshot Claude toggle, ignore AutoCopy in Transcribe. Integrate startup/exit cleanup after singleton ownership, retain exporters regardless of close-vs-ZIP. Rework obsolete TranscribeIntegrationProbe assertions to revised agreed lifecycle without removing coverage. Native/injected integration tests must exercise behavior, not just source-string checks. This bounded path may span controller/panel/host/probe files, no video changes. EvidencePaths must be individual existing FILE paths, never directories. Behavioral RED must fail intended assertions (use compiling API scaffold first if necessary), not just missing method/constructor APIs. Installed Python is resolvable by parent PATH setup; do not change mandatory checks. Worker environment: BuildInParallel=false allows unchanged Build.ps1 scripts to run; use env var and serial cached -m:1 if needed, preserve actual command outputs. Integration quality requirement: reuse already staged immutable capture files (cache by capture identity, not sequence alone because new sessions reset it); do not rewrite old screenshots every capture/Undo/retry. Add behavioral writer-count coverage for this and failed-write retries. Complete tests for integrated controller lifecycle through injectable adapters or native probe; preserve actual desktop/Claude gaps accurately.",
       "acceptanceCriteria": [
         "RED/GREEN acceptance test for missing integrated batch behavior precedes production wiring. Tests prove accepted capture publishes full batch, rejected capture preserves old clipboard and persistent warning, Undo/Next Batch and latest-state retry, X/Stop close vs ZIP export, empty ZIP disabled and empty session clipboard unchanged.",
         "Always-on-top panel displays correct current count/size/thumbnail/clipboard state and accessible controls; limit/copy errors persist after capture refresh. Pending capture cannot reappear after closure/reset. New session does not overwrite prior offering until first successful capture.",
