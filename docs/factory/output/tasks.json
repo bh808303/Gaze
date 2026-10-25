@@ -1,0 +1,25 @@
+{
+  "completedTaskIds": [],
+  "checks": [
+    "pwsh -NoProfile -File scripts/Build.ps1; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "pwsh -NoProfile -File scripts/Build.ps1 -Release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "dotnet run --project tests/Gaze.Settings.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "python -m unittest discover -s tests -p test_timeline_reader.py; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "git diff --check; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "dotnet run --project tests/Gaze.Clipboard.Tests; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+    "dotnet artifacts/app/Gaze.App.dll --transcribe-trigger-probe docs/factory/runs/printscreen-gate; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"
+  ],
+  "tasks": [
+    {
+      "id": "OUT01",
+      "description": "Implement docs/factory/output/spec.md in two verified increments from plan.md. Read applicable instructions and only relevant sources. Use real behavioral RED BEFORE production changes (existing API with inert scaffold if needed) for output routing/persistent capture and category actions. BuildInParallel=false serial cached builds available. Existing Python executable C:/Users/BH808/AppData/Local/Python/pythoncore-3.14-64/python.exe. No real clipboard, recycler, input, user settings; injectable fixtures and actual WPF renders. Mandatory native probe uses installHooks:false and suppresses probe-only crash dialogs; preserve containment. Record full evidence and verification.md, individual evidencePaths files. Do not commit/push/merge or change factory manifest/check scripts. Parent will review and commit.",
+      "acceptanceCriteria": [
+        "New video outputs use Output/Videos; accepted PNG and finished ZIP saved uniquely in Output/Screenshots with retries/Undo/rejections/lifetime handled as spec; persisted folder compatibility and old files untouched. Meaningful behavioral RED and GREEN evidence.",
+        "Two top file category buttons default current capture mode; lists, Open, Clipboard, Open Folder and confirmed scoped Clean-up follow viewed category; settings Output label, no regression. Actual injected checks and readable renders of both tabs.",
+        "All seven mandatory checks pass, plus focused output/category tests; README/docs/changelog accurate. No real user data deletion or clipboard changes. Release build, record limitations honestly."
+      ],
+      "testCommand": "dotnet run --project tests/Gaze.Settings.Tests",
+      "dependsOn": []
+    }
+  ]
+}
