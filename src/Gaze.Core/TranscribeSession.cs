@@ -44,8 +44,8 @@ public sealed class TranscribeSession
         ArgumentNullException.ThrowIfNull(png);
         if (State != TranscribeState.Capturing) return Reject(TranscribeCaptureRejection.NotCapturing);
         if (png.Length == 0) return Reject(TranscribeCaptureRejection.EmptyPng);
-        // TODO B01: enforce count limit before retaining a capture.
-        // TODO B01: enforce aggregate byte limit before retaining a capture.
+        if (captures.Count >= Limits.MaxCount) return Reject(TranscribeCaptureRejection.CountLimit);
+        if (png.LongLength > Limits.MaxPngBytes - TotalPngBytes) return Reject(TranscribeCaptureRejection.ByteLimit);
         var capture = new TranscribeCapture(checked(sequence + 1), title ?? "", png);
         captures.Add(capture);
         sequence = capture.Sequence;
@@ -60,7 +60,7 @@ public sealed class TranscribeSession
     public bool NextBatch()
     {
         if (State != TranscribeState.Capturing) return false;
-        // TODO B01: reset current batch.
+        ClearBatch();
         return true;
     }
 
