@@ -10,7 +10,7 @@
   "tasks": [
     {
       "id": "B01",
-      "description": "Read docs/factory/batches/spec.md and alignment.md. Implement current-batch core rules: PNG byte count, selectable limits (Claude on: 20 / 29,000,000; off: 100 / 268,435,456), rejection feedback without changing previous batch, Next Batch reset, Undo accounting. Keep current constructors/callers compiling until integration. Focus Gaze.Core and Gaze.Tests. Existing video unchanged.",
+      "description": "Read docs/factory/batches/spec.md and alignment.md. B01 recovery: API contracts/accounting and acceptance tests are committed, but count/byte enforcement and NextBatch reset are deliberately absent. Run existing meaningful failing TranscribeBatchChecks BEFORE any production edit. Then implement missing count/byte enforcement before retain and NextBatch reset; preserve other contracts. Record genuine behavioral RED then GREEN from this retry. Earlier run/review history is preserved; do not claim original run passed. Return individual evidence FILE paths. Use dotnet --no-restore -p:BuildInParallel=false -m:1 to bypass sandbox restore if needed, outer mandatory checks remain unchanged. Do not alter tests to get green.",
       "acceptanceCriteria": [
         "Meaningful tests fail for missing batch reset and exact count/byte boundaries before implementation; prove rejection preserves captures/order/bytes and accounting recovers with Undo/reset.",
         "Expose simple core contracts for new batch, limits, bytes and rejection reason; keep immutable captures, archive ordering/names and existing lifecycle tests intact until adapter migration.",
@@ -21,36 +21,42 @@
     },
     {
       "id": "B02",
-      "description": "Read docs/factory/batches/spec.md and B01 contracts. Implement testable live PNG file-drop publication in TranscribeExporter or a tightly scoped helper, ordered sanitized names, ownership-aware clear, current snapshot retry, session-independent backing-file lifetime, current-batch ZIP limit check/publication. Add safe startup/exit cleanup support limited to owned Transcribe artifacts, no reparse traversal or unrelated/saved-file deletion. Do not wire UI/host yet; preserve compilation of current callers/probes with compatibility as needed. No real clipboard mutation in automated unit checks; inject native delegates and temp roots. Add focused tests via Windows test executable or existing export checks.",
+      "description": "Read docs/factory/batches/spec.md and B01 contracts. Implement testable live PNG file-drop publication in TranscribeExporter or a tightly scoped helper, ordered sanitized names, ownership-aware clear, current snapshot retry, session-independent backing-file lifetime, current-batch ZIP limit check/publication. Add safe startup/exit cleanup support limited to owned Transcribe artifacts, no reparse traversal or unrelated/saved-file deletion. Do not wire UI/host yet; preserve compilation of current callers/probes with compatibility as needed. No real clipboard mutation in automated unit checks; inject native delegates and temp roots. Add focused tests via Windows test executable or existing export checks. EvidencePaths must be individual existing FILE paths, never directories. Behavioral RED must fail intended assertions (use compiling API scaffold first if necessary), not just missing method/constructor APIs. Installed Python is resolvable by parent PATH setup; do not change mandatory checks.",
       "acceptanceCriteria": [
         "RED/GREEN behavioral tests verify multi-file batch ordering/data, overwritten clipboard preservation on clear, capture/Undo/reset retry using latest snapshot, partial write/publication failures retaining prior usable data, and ZIP rejecting bytes over 29MB before clipboard mutation.",
         "Published PNG/ZIP files survive panel/session closure; disposal/startup cleanup support removes only owned temp files safely, refuses redirected paths and active-instance collisions, leaves configured saved files untouched. Backing files of previous batches remain until app exit.",
         "Expose documented adapter APIs for B03. Keep core/current adapters compiling and all mandatory checks passing; do not silently reduce required testing."
       ],
       "testCommand": "pwsh -NoProfile -File scripts/Build.ps1",
-      "dependsOn": ["B01"]
+      "dependsOn": [
+        "B01"
+      ]
     },
     {
       "id": "B03",
-      "description": "Read docs/factory/batches/spec.md and prior build contracts. Wire controller/TranscribeWindow/TrayContext/Program to live batches. Topmost panel with Undo, Next Batch, ZIP, count/size/latest/clipboard status/retry. No Done/Cancel or close prompts. Stop/action shortcut/double Esc/X close without ZIP preserving files/offering; ZIP closes only on successful current-batch publication. Empty Start leaves clipboard unchanged. Snapshot Claude toggle, ignore AutoCopy in Transcribe. Integrate startup/exit cleanup after singleton ownership, retain exporters regardless of close-vs-ZIP. Rework obsolete TranscribeIntegrationProbe assertions to revised agreed lifecycle without removing coverage. Native/injected integration tests must exercise behavior, not just source-string checks. This bounded path may span controller/panel/host/probe files, no video changes.",
+      "description": "Read docs/factory/batches/spec.md and prior build contracts. Wire controller/TranscribeWindow/TrayContext/Program to live batches. Topmost panel with Undo, Next Batch, ZIP, count/size/latest/clipboard status/retry. No Done/Cancel or close prompts. Stop/action shortcut/double Esc/X close without ZIP preserving files/offering; ZIP closes only on successful current-batch publication. Empty Start leaves clipboard unchanged. Snapshot Claude toggle, ignore AutoCopy in Transcribe. Integrate startup/exit cleanup after singleton ownership, retain exporters regardless of close-vs-ZIP. Rework obsolete TranscribeIntegrationProbe assertions to revised agreed lifecycle without removing coverage. Native/injected integration tests must exercise behavior, not just source-string checks. This bounded path may span controller/panel/host/probe files, no video changes. EvidencePaths must be individual existing FILE paths, never directories. Behavioral RED must fail intended assertions (use compiling API scaffold first if necessary), not just missing method/constructor APIs. Installed Python is resolvable by parent PATH setup; do not change mandatory checks.",
       "acceptanceCriteria": [
         "RED/GREEN acceptance test for missing integrated batch behavior precedes production wiring. Tests prove accepted capture publishes full batch, rejected capture preserves old clipboard and persistent warning, Undo/Next Batch and latest-state retry, X/Stop close vs ZIP export, empty ZIP disabled and empty session clipboard unchanged.",
         "Always-on-top panel displays correct current count/size/thumbnail/clipboard state and accessible controls; limit/copy errors persist after capture refresh. Pending capture cannot reappear after closure/reset. New session does not overwrite prior offering until first successful capture.",
         "Startup/exit cleanup runs only for app-owned temp staging with safe ownership; panel close keeps staged files. Update native fixture to test current UX, run feasible checks and record unavailable desktop/Claude cases honestly. All mandatory checks pass; existing video routing/splitting behavior unchanged."
       ],
       "testCommand": "pwsh -NoProfile -File scripts/Build.ps1",
-      "dependsOn": ["B02"]
+      "dependsOn": [
+        "B02"
+      ]
     },
     {
       "id": "B04",
-      "description": "Read docs/factory/batches/spec.md. Rename existing split setting UI in WPF/WinForms to Claude Desktop Clipboard, accessible name and concise helper describing video 29MB parts and Transcribe 20 images/29MB batch; retain persisted SplitAt29Mb key and existing video behavior. Update any actual UI validation probes expecting previous label. Add meaningful setting/panel regression coverage, user README/docs/transcribe.md/changelog for final flow, limits, failures and Gaze-exit cleanup. Run final checks and feasible panel evidence; no actual Claude upload/messages. Record verification gaps rather than claim acceptance.",
+      "description": "Read docs/factory/batches/spec.md. Rename existing split setting UI in WPF/WinForms to Claude Desktop Clipboard, accessible name and concise helper describing video 29MB parts and Transcribe 20 images/29MB batch; retain persisted SplitAt29Mb key and existing video behavior. Update any actual UI validation probes expecting previous label. Add meaningful setting/panel regression coverage, user README/docs/transcribe.md/changelog for final flow, limits, failures and Gaze-exit cleanup. Run final checks and feasible panel evidence; no actual Claude upload/messages. Record verification gaps rather than claim acceptance. EvidencePaths must be individual existing FILE paths, never directories. Behavioral RED must fail intended assertions (use compiling API scaffold first if necessary), not just missing method/constructor APIs. Installed Python is resolvable by parent PATH setup; do not change mandatory checks.",
       "acceptanceCriteria": [
         "RED/GREEN regression tests prove user-facing setting label/help and persistence compatibility, both settings surfaces; existing AutoCopy/video tests unchanged and pass.",
         "Documentation accurately explains Start/capture/paste/Next Batch/ZIP/X, toggle on/off limits, warning rejection, clipboard retry/overwrite, staged lifetime and startup/exit cleanup; no claims of universal Claude support or unperformed tests.",
         "All mandatory checks pass; record final verification and actionable risks in docs/factory/batches/verification.md, with feasible UI evidence and explicit untested cases."
       ],
       "testCommand": "dotnet run --project tests/Gaze.Settings.Tests",
-      "dependsOn": ["B03"]
+      "dependsOn": [
+        "B03"
+      ]
     }
   ]
 }

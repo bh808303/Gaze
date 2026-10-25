@@ -1,0 +1,17 @@
+# B01 core contracts
+
+- `new TranscribeSession()` remains supported and defaults to Claude limits. `new TranscribeSession(bool claudeDesktopClipboard)` snapshots the setting. `Limits` is immutable: Claude 20 / 29,000,000 encoded PNG bytes; standard 100 / 268,435,456. Exact ceilings are inclusive.
+- `AddCapture` retains its bool result. Inspect `LastCaptureRejection` for None, NotCapturing, EmptyPng, CountLimit or ByteLimit. Count takes precedence when both limits are exceeded. Rejection happens before cloning/retaining bytes and changes no capture, order, sequence or byte total. Null input still throws.
+- `TotalPngBytes` is current-batch encoded size; immutable capture `PngByteCount` avoids cloning to read size. PNG validation remains the adapter's responsibility.
+- `NextBatch()` returns true only while Capturing, clears captures/bytes/latest/error/rejection, and remains Capturing. Sequence stays monotonic across Undo and Next Batch to preserve existing naming semantics. Undo subtracts latest bytes and clears rejection on success. Finish/discard also clear accounting; export failure retains bytes and existing frozen retry lifecycle.
+- The adapter must coordinate ownership-aware clipboard clear/publication and retained temporary files. Core reset performs no clipboard or file operations. Do not claim clipboard success from this method. Snapshot the setting at session start; pass it to the bool constructor during integration.
+- Archive generation/naming and existing lifecycle contracts remain unchanged. Final ZIP overhead validation and clipboard lifecycle belong to later adapters; PNG totals alone do not guarantee a ZIP fits.
+
+## B01 validation
+
+Evidence: `docs/factory/runs/20261025-120019-547`. Red tests compiled and failed on absent limit constructor / NextBatch member before production changes. Runtime lookup enabled a behavioral red without introducing production stubs; tests were converted to typed calls after implementation. Boundary tests allocate real encoded-byte payloads (encoding itself is validated by the adapter), including the 256 MiB guardrail. Native clipboard/Claude ingestion and desktop capture were not tested by this core task.
+
+Validation completed: core red exit 1, green exit 0; typed tests green exit 0; Debug and Release app builds passed with cached assets, `-m:1` and `UseSharedCompilation=false` (zero warnings/errors). Original Build.ps1 invocations exited 1 during restore; cached parallel build also exited 1 without diagnostics. Serial cached builds establish callers compile without changing scripts. Settings passed. Python Store alias failed, installed interpreter via `py -3.14` passed all 5 timeline tests. See per-command logs/exit codes for exact outcomes. No native desktop or Claude validation performed.
+
+## B01 recovery (2026-10-25)
+Original RED failed on absent constructor/NextBatch APIs. Supplementary postimplementation scaffold checks showed correct regression sensitivity, but the independent reviewer correctly did not treat them as preimplementation timing evidence. All five outer mandatory checks passed after resolving python via PATH. The original run is not accepted. Restart B01 from the committed compiling API/acceptance-test contract with deliberately absent enforcement/reset, capture a genuine behavioral RED, then implement and independently review. Preserve original evidence rather than rewrite history.
