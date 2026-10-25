@@ -1,5 +1,12 @@
 # Changelog
 
+## Persistent Output and file categories — 2026-10-25
+
+- Use Output/Videos for new video recordings and Output/Screenshots for accepted PNGs and final batch ZIPs. Preserve the Folder setting and legacy files; no automatic migration.
+- Save uniquely, retry failures without duplicate output, and retain saved history through Undo, Next Batch, close and exit. Temporary clipboard staging remains separate.
+- Add Screenshots/Recordings file categories defaulting to capture mode. Selected file actions, folder and default-No confirmed Clean-up follow the viewed category; only matching top-level files are recycled.
+
+
 ## Screenshot mode label — 2026-10-25
 
 - Rename the user-facing Transcribe mode and trigger labels to Screenshot; retain existing saved settings and capture behavior.

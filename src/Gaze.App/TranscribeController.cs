@@ -37,7 +37,7 @@ internal sealed class TranscribeController : IDisposable
             : TranscribeScreenshotSource.CaptureRectangleAsync(selection.Area, area));
         exporter = new TranscribeExporter(true, folder);
         flow = new TranscribeBatchFlow(session, publish ?? exporter.PublishBatch,
-            export ?? (captures => exporter.PublishBatchZip(captures, claudeDesktopClipboard)), Complete);
+            export ?? (captures => exporter.PublishBatchZip(captures, claudeDesktopClipboard)), Complete, new OutputStore(folder));
         window = new TranscribeWindow(Undo, Finish, RequestClose, NextBatch, RetryClipboard, trigger);
         try
         {
@@ -93,6 +93,7 @@ internal sealed class TranscribeController : IDisposable
         if (disposed) return true;
         CancelGesture();
         flow.Close();
+        if (!disposed) Refresh();
         return disposed;
     }
     private void Complete(bool exported)

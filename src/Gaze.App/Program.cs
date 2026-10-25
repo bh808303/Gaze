@@ -6,6 +6,7 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        if (args.Length == 2 && args[0] == "--output-panel-probe") { OutputPanelProbe.Run(args[1]); return; }
         if (args.Length == 2 && args[0] == "--transcribe-ui-check")
         {
             int zipped = 0, closed = 0;

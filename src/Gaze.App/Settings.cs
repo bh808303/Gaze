@@ -20,7 +20,7 @@ internal sealed class Settings
     public bool DoubleEscape { get; set; } = true;
     public uint Modifiers { get; set; } = 3;
     public Keys Key { get; set; } = Keys.PrintScreen;
-    public string Folder { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Gaze");
+    public string Folder { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Gaze", "Output");
     private static string PathName => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Gaze", "settings.json");
     internal static Settings Load(string? path = null)
     {
@@ -142,17 +142,17 @@ internal sealed class SettingsForm : Form
         Wide(new Label { Text = "Select the shortcut field, then press your preferred key combination.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
         escape.Text = "Press Esc twice within 1 second to stop";
         Row("Stop confirmation", escape);
-        Section("Saving", "Choose where recordings go and keep them ready to paste.");
+        Section("Saving", "Choose the Output root for Videos and Screenshots.");
         var folderRow = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 2, Margin = Padding.Empty };
         folderRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); folderRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        var browse = new Button { Text = "Browse…", AutoSize = true, AccessibleName = "Browse recording folder" };
+        var browse = new Button { Text = "Browse…", AutoSize = true, AccessibleName = "Browse Output root" };
         browse.Click += (_, _) =>
         {
-            using var picker = new FolderBrowserDialog { Description = "Choose a folder for Gaze recordings", UseDescriptionForTitle = true, SelectedPath = folder.Text };
+            using var picker = new FolderBrowserDialog { Description = "Choose the Gaze Output root", UseDescriptionForTitle = true, SelectedPath = folder.Text };
             if (picker.ShowDialog(this) == DialogResult.OK) folder.Text = picker.SelectedPath;
         };
         folderRow.Controls.Add(folder, 0, 0); folderRow.Controls.Add(browse, 1, 0);
-        Row("Save folder", folderRow); Row("File size", split);
+        Row("Output", folderRow); Row("File size", split);
         split.AccessibleName = "Claude Desktop Clipboard";
         Wide(new Label { Text = "Video: 29 MB parts. Screenshot: 20 images / 29 MB per batch. Video splitting re-encodes; Auto-copy copies all parts.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
         Row("After saving", copy);

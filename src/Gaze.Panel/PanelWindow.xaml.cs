@@ -20,7 +20,7 @@ public partial class PanelWindow : FluentWindow
     private readonly Action<string> open, copy;
     private bool viewingRecordings, editing, updating, idle = true, disposing;
     private uint modifiers; private int key;
-    public sealed record Recording(string Path, string Name, string Details);
+    public sealed record Recording(string Path, string Name, string Details) { public SymbolRegular Icon { get; init; } = SymbolRegular.Video24; }
     public PanelWindow(Func<PanelOptions> getOptions, Action<PanelOptions> apply, Action action, Action cancel, Action<string> open, Action folder, Action<string> copy, Action quit, Action cleanup, Func<bool>? readSignInStartup = null)
     {
         this.readSignInStartup = readSignInStartup ?? (() => false);
@@ -51,13 +51,16 @@ public partial class PanelWindow : FluentWindow
     public static void StopHostDispatcher() => System.Windows.Application.Current.Shutdown();
     public object LayoutEvidence() => new { ActualWidth, ActualHeight, IsLoaded, IsVisible, ContentWidth = ((FrameworkElement)Content).ActualWidth, ContentHeight = ((FrameworkElement)Content).ActualHeight };
     public void DisposePanel() { disposing = true; Close(); }
+    public OutputCategory ViewedCategory { get; private set; } = OutputCategory.Recordings;
+    public string ViewedFolder => OutputStore.Folder(getOptions().Folder, ViewedCategory);
     public void RefreshRecordings()
     {
         string? selected = (Recordings.SelectedItem as Recording)?.Path;
         try
         {
-            var directory = getOptions().Folder;
-            var files = Directory.Exists(directory) ? new DirectoryInfo(directory).GetFiles("*.mp4").OrderByDescending(f => f.LastWriteTimeUtc).Select(f => new Recording(f.FullName, f.Name, $"{f.LastWriteTime:dd MMM yyyy · HH:mm}   ·   {f.Length / 1048576.0:0.0} MB")).ToArray() : [];
+            var directory = ViewedFolder;
+            EmptyList.Text = ViewedCategory == OutputCategory.Screenshots ? "No screenshots in Output/Screenshots" : "No recordings in Output/Videos";
+            var files = Directory.Exists(directory) ? new DirectoryInfo(directory).GetFiles().Where(f => OutputFiles.Includes(ViewedCategory, f.FullName)).OrderByDescending(f => f.LastWriteTimeUtc).Select(f => new Recording(f.FullName, f.Name, $"{f.LastWriteTime:dd MMM yyyy · HH:mm}   ·   {f.Length / 1048576.0:0.0} MB") { Icon = ViewedCategory == OutputCategory.Screenshots ? SymbolRegular.Image24 : SymbolRegular.Video24 }).ToArray() : [];
             Recordings.ItemsSource = files; FileCount.Text = $"({files.Length})"; EmptyList.Visibility = files.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
             Recordings.SelectedItem = files.FirstOrDefault(f => f.Path == selected) ?? files.FirstOrDefault();
         }
@@ -115,6 +118,7 @@ public partial class PanelWindow : FluentWindow
     public void ShowRecordings()
     {
         editing = false; viewingRecordings = true;
+        SelectCategory(getOptions().Mode == CaptureMode.Transcribe ? OutputCategory.Screenshots : OutputCategory.Recordings);
         Height = 540; PanelFrame.Height = Height / 0.85;
         FooterRow.Height = new GridLength(55.7647);
         HomePage.Visibility = SettingsPage.Visibility = SettingsFooter.Visibility = Visibility.Collapsed;
@@ -123,6 +127,19 @@ public partial class PanelWindow : FluentWindow
         RecordingsIcon.Symbol = SymbolRegular.ArrowLeft24;
         RefreshRecordings();
     }
+    private void SelectCategory(OutputCategory category)
+    {
+        ViewedCategory = category;
+        Heading.Text = category == OutputCategory.Screenshots ? "Screenshots" : "Recordings";
+        ScreenshotsCategory.Appearance = category == OutputCategory.Screenshots ? ControlAppearance.Primary : ControlAppearance.Secondary;
+        RecordingsCategory.Appearance = category == OutputCategory.Recordings ? ControlAppearance.Primary : ControlAppearance.Secondary;
+        System.Windows.Automation.AutomationProperties.SetItemStatus(ScreenshotsCategory, category == OutputCategory.Screenshots ? "Selected" : "Not selected");
+        System.Windows.Automation.AutomationProperties.SetItemStatus(RecordingsCategory, category == OutputCategory.Recordings ? "Selected" : "Not selected");
+        Recordings.SelectedItem = null;
+        RefreshRecordings();
+    }
+    private void ScreenshotsCategoryClick(object sender, RoutedEventArgs e) => SelectCategory(OutputCategory.Screenshots);
+    private void RecordingsCategoryClick(object sender, RoutedEventArgs e) => SelectCategory(OutputCategory.Recordings);
     private void RecordingsClick(object sender, RoutedEventArgs e)
     {
         if (viewingRecordings) Home(); else ShowRecordings();
@@ -258,7 +275,7 @@ public partial class PanelWindow : FluentWindow
     }
     private void BrowseClick(object sender, RoutedEventArgs e)
     {
-        var picker = new Microsoft.Win32.OpenFolderDialog { InitialDirectory = Folder.Text, Title = "Recording folder" };
+        var picker = new Microsoft.Win32.OpenFolderDialog { InitialDirectory = Folder.Text, Title = "Output root" };
         if (picker.ShowDialog(this) == true) Folder.Text = picker.FolderName;
     }
     private void ShortcutKey(object sender, KeyEventArgs e)

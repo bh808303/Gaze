@@ -59,6 +59,9 @@ internal static class Program
                 if (Settings.Load(invalidPath).TranscribeTrigger != TranscribeTrigger.MiddleMouse) throw new Exception("Legacy loaded trigger changed");
             }
             finally { File.Delete(invalidPath); }
+            var oldFolder = JsonSerializer.Deserialize<Settings>("{\"Folder\":\"C:/legacy-gaze\"}")!;
+            if (oldFolder.Folder != "C:/legacy-gaze" || !JsonSerializer.Serialize(oldFolder).Contains("Folder")) throw new Exception("Output root Folder compatibility changed");
+            if (Path.GetFileName(new Settings().Folder) != "Output") throw new Exception("New default is not Output");
             var property = typeof(Settings).GetProperty("RecordTimelineMetadata");
             if (property == null) throw new Exception("Settings has no optional metadata toggle");
             var legacy = JsonSerializer.Deserialize<Settings>("{\"KeyboardTimeline\":true}")!;

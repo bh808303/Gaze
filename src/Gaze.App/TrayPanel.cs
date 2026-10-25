@@ -27,6 +27,8 @@ internal sealed class TrayPanel : IDisposable, IWin32Window
         }
         window.RefreshState(state, duration, busy);
     }
+    internal OutputCategory ViewedCategory => window.ViewedCategory;
+    internal string ViewedFolder => window.ViewedFolder;
     internal void RefreshRecordings() => window.RefreshRecordings();
     internal void ShowRecordings() => window.ShowRecordings();
     internal void EditSettings() => window.EditSettings();
