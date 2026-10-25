@@ -1,5 +1,9 @@
 # Changelog
 
+## Screenshot mode label — 2026-10-25
+
+- Rename the user-facing Transcribe mode and trigger labels to Screenshot; retain existing saved settings and capture behavior.
+
 ## Transcribe trigger — 2026-10-25
 
 - Add a persisted exclusive Middle mouse / Print Screen Transcribe trigger, both settings surfaces, selected-session hints, and controlled save/cancel/routing regression evidence. Native Snipping and physical multi-monitor checks remain deferred.

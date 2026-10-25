@@ -182,7 +182,7 @@ internal sealed class TrayContext : ApplicationContext
             }
         }
         var duration = $"{(int)session.Duration.TotalHours:00}:{session.Duration.Minutes:00}:{session.Duration.Seconds:00}";
-        tray.Text = transcribe != null ? "Gaze · Transcribe" : $"Gaze · {session.State} · {duration}";
+        tray.Text = transcribe != null ? "Gaze · Screenshot" : $"Gaze · {session.State} · {duration}";
         panel?.RefreshState(transcribe != null ? SessionState.Recording : session.State, session.Duration, starting, lastFile != null);
         if (now < noticeUntil) return;
         if (session.State == SessionState.Armed)

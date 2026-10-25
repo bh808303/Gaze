@@ -101,7 +101,7 @@ internal sealed class SettingsForm : Form
             Wide(card);
         }
         var mode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
-        mode.Items.AddRange(["Selected window", "All monitors", "Main monitor", "Transcribe"]); mode.SelectedIndex = (int)settings.Mode;
+        mode.Items.AddRange(["Selected window", "All monitors", "Main monitor", "Screenshot"]); mode.SelectedIndex = (int)settings.Mode;
         var trigger = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
         trigger.Items.AddRange(["Middle mouse", "Print Screen"]); trigger.SelectedIndex = (int)settings.TranscribeTrigger;
         var canvas = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, Enabled = settings.Mode == CaptureMode.Window };
@@ -137,7 +137,7 @@ internal sealed class SettingsForm : Form
         Row("Mouse clicks", clicks);
         Row("Timeline metadata", metadata); Row("Keyboard timeline", keyboard);
         Section("Controls", "Click the tray icon or use your shortcut to arm, record, and save.");
-        Row("Transcribe trigger", trigger);
+        Row("Screenshot trigger", trigger);
         Row("Shortcut", key);
         Wide(new Label { Text = "Select the shortcut field, then press your preferred key combination.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
         escape.Text = "Press Esc twice within 1 second to stop";
@@ -154,7 +154,7 @@ internal sealed class SettingsForm : Form
         folderRow.Controls.Add(folder, 0, 0); folderRow.Controls.Add(browse, 1, 0);
         Row("Save folder", folderRow); Row("File size", split);
         split.AccessibleName = "Claude Desktop Clipboard";
-        Wide(new Label { Text = "Video: 29 MB parts. Transcribe: 20 images / 29 MB per batch. Video splitting re-encodes; Auto-copy copies all parts.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
+        Wide(new Label { Text = "Video: 29 MB parts. Screenshot: 20 images / 29 MB per batch. Video splitting re-encodes; Auto-copy copies all parts.", AutoSize = true, MaximumSize = new Size(560, 0), ForeColor = Color.FromArgb(80, 85, 95) });
         Row("After saving", copy);
         var save = new Button { Text = "Save settings", AutoSize = true, Padding = new Padding(12, 4, 12, 4), BackColor = Color.FromArgb(0, 103, 184), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
         save.FlatAppearance.BorderSize = 0;

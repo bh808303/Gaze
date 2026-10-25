@@ -31,7 +31,7 @@ public partial class PanelWindow : FluentWindow
         Fps.ItemsSource = Enumerable.Range(1, 30);
         System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(this);
         Loaded += (_, _) => { if (editing) EditSettings(); };
-        updating = true; Mode.ItemsSource = new[] { "Selected window", "All monitors", "Main monitor", "Transcribe" }; Mode.SelectedIndex = (int)getOptions().Mode; updating = false;
+        updating = true; Mode.ItemsSource = new[] { "Selected window", "All monitors", "Main monitor", "Screenshot" }; Mode.SelectedIndex = (int)getOptions().Mode; updating = false;
         Closing += (_, e) => { if (disposing) return; e.Cancel = true; Hide(); Home(); };
         Home();
     }
@@ -279,7 +279,7 @@ public partial class PanelWindow : FluentWindow
             var options = getOptions(); options.Folder = Path.GetFullPath(Folder.Text); options.Modifiers = modifiers; options.Key = key; options.FrameRate = (int)fps;
             options.AutoCopy = AutoCopy.IsChecked == true; options.ClickHighlight = Clicks.IsChecked == true; options.DoubleEscape = DoubleEscape.IsChecked == true; options.Canvas = (WindowCanvasMode)Canvas.SelectedIndex;
             if (Compression.SelectedIndex < 0) throw new InvalidOperationException("Choose a compression mode.");
-            if (CaptureTrigger.SelectedIndex < 0) throw new InvalidOperationException("Choose a Transcribe trigger.");
+            if (CaptureTrigger.SelectedIndex < 0) throw new InvalidOperationException("Choose a Screenshot trigger.");
             options.TranscribeTrigger = (TranscribeTrigger)CaptureTrigger.SelectedIndex;
             options.Compression = (CompressionMode)Compression.SelectedIndex;
             options.SplitAt29Mb = SplitAt29Mb.IsChecked == true;
